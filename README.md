@@ -2,7 +2,7 @@
 
 **Overview**
 
-gp3 currently focuses on grid structure-exploiting inference for Gaussian Process Latent Variable Models. As of now, we support Laplace approximation and Stochastic Variational Inference. For usage examples see the notebooks in the examples directory. Comprehensive documentation coming soon.
+gp3 currently focuses on grid structure-exploiting inference for Gaussian Process Latent Variable Models. As of now, we support Laplace approximations and Stochastic Variational Inference. For usage examples, see the notebooks in the examples directory. Comprehensive documentation coming soon.
 
 gp3 is currently compatible with Python 2.7. Install with
 
