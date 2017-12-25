@@ -18,6 +18,6 @@ For more information on structure-exploiting inference for GPs, see the followin
 
 Adams et al, *Tractable Nonparametric Bayesian Inference in Poisson Processes with Gaussian Process Intensities*, Proceedings of the 26th International Conference on Machine Learning, Montreal, Canada, 2009
 
-Flaxman et al, *Fast Kronecker Inference in Gaussian Processes with non-Gaussian Likelihoods*, Proceedings of the 32nd$$ International Conference on Machine Learning, Lille, France, 2015
+Flaxman et al, *Fast Kronecker Inference in Gaussian Processes with non-Gaussian Likelihoods*, Proceedings of the 32nd International Conference on Machine Learning, Lille, France, 2015
 
 Wilson and Nickisch, *Kernel Interpolation for Scalable Structured Gaussian Processes (KISS-GP)*, Proceedings of the 32nd International Conference on Machine Learning, Lille, France, 2015
