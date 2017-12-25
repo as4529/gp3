@@ -1,6 +1,6 @@
 .idea/*
 .ipynb_checkpoints*
 *.pyc
-.gp3.egg-info/*
-.dist/*
+gp3.egg-info/*
+dist/*
 MANIFEST
