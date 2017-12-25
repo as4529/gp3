@@ -1,4 +1,6 @@
-**GP3**: **G**aussian **P**rocesses with **P**robabilistic **P**rogramming
+# GP3
+
+**G**aussian **P**rocesses with **P**robabilistic **P**rogramming
 
 **Overview**
 
