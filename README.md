@@ -16,8 +16,20 @@ gp3 leverages [autograd](https://github.com/HIPS/autograd) to allow for custom l
 
 For more information on structure-exploiting inference for GPs, see the following:
 
-Adams et al, *Tractable Nonparametric Bayesian Inference in Poisson Processes with Gaussian Process Intensities*, Proceedings of the 26th International Conference on Machine Learning, Montreal, Canada, 2009
+Flaxman, Seth, Wilson, Andrew Gordon, Neil, Daniel B., Nickish, Hannes, Smola, Alexander J.
+(2015). *Fast Kronecker Inference in Gaussian Processes with Non-Gaussian Likelihoods*. Proceed-
+ings of the 32nd International Conference on Machine Learning.
 
-Flaxman et al, *Fast Kronecker Inference in Gaussian Processes with non-Gaussian Likelihoods*, Proceedings of the 32nd International Conference on Machine Learning, Lille, France, 2015
+Rasmussen, C. E. and Williams, C. K. I. (2006). *Gaussian processes for Machine Learning*.The
+MIT Press.
 
-Wilson and Nickisch, *Kernel Interpolation for Scalable Structured Gaussian Processes (KISS-GP)*, Proceedings of the 32nd International Conference on Machine Learning, Lille, France, 2015
+Wilson, Andrew Gordon, Gilboa, Elad, Nehorai, Arye, and Cunningham, John P. (2014). *Fast Ker-
+nel Learning for Multidimensional Pattern Extrapolation*. 27th Conference on Neural Information
+Processing Systems (NIPS 2014).
+
+Wilson, Andrew Gordon, Dann, Christoph, Nickish Hannes (2015). *Thoughts on Massively Scalable
+Gaussian Processes*
+
+Wilson, Andrew Gordon, Hu, Zhiting, Salakhutdinov, Ruslan, Xing, Eric P. (2016). *Stochastic
+Variational Deep Kernel Learning*. 29th Conference on Neural Information Processing Systems
+(NIPS 2016).
