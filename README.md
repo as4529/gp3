@@ -1,4 +1,4 @@
-GP3: Gaussian Processes with Probabilistic Programming
+\textbf{GP3}: Gaussian Processes with Probabilistic Programming
 
 Currently compatible with Python 2.7. Install with
 
