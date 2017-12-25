@@ -1,8 +1,8 @@
 import numpy as np
-from utils.kron import kron_list, kron_mvp
+from gp3.utils.kron import kron_list, kron_mvp
 from tqdm import trange
 from copy import deepcopy
-from utils.cg import CGOptimizer
+from gp3.utils.cg import CGOptimizer
 
 """
 Stochastic Variational Inference for Gaussian Processes with Non-Gaussian Likelihoods

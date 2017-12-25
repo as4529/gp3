@@ -1,8 +1,8 @@
 import numpy as np
 import sys
 from tqdm import trange
-from utils.cg import CGOptimizer
-from utils.kron import kron_list, kron_mvp
+from gp3.utils.cg import CGOptimizer
+from gp3.utils.kron import kron_list, kron_mvp
 
 
 """
@@ -148,7 +148,7 @@ class GPLaplace:
         Args:
             max_it (int): maximum number of Kronecker iterations
             it (int): current iteration
-            delta (np.Variable): change in step size
+            delta (np.array): change in step size
 
         Returns: max iteration, current iteration, previous objective,
          change in objective
@@ -187,8 +187,8 @@ class GPLaplace:
         """
         Executes line search for optimal Newton step
         Args:
-            delta_alpha (np.Variable): change in search direction
-            obj_prev (np.Variable): previous objective value
+            delta_alpha (np.array): change in search direction
+            obj_prev (np.array): previous objective value
             max_it (int): maximum number of iterations
 
         Returns: optimal step size
@@ -212,14 +212,14 @@ class GPLaplace:
         """
         Executes one step of a backtracking line search
         Args:
-            obj_prev (np.Variable): previous objective
-            obj_search (np.Variable): current objective
-            min_obj (np.Variable): current minimum objective
-            delta_alpha (np.Variable): change in step size
-            step_size (np.Variable): current step size
+            obj_prev (np.array): previous objective
+            obj_search (np.array): current objective
+            min_obj (np.array): current minimum objective
+            delta_alpha (np.array): change in step size
+            step_size (np.array): current step size
             max_it (int): maximum number of line search iterations
-            t (np.Variable): current line search iteration
-            opt_step (np.Variable): optimal step size until now
+            t (np.array): current line search iteration
+            opt_step (np.array): optimal step size until now
 
         Returns: updated parameters
         """
@@ -269,7 +269,7 @@ class GPLaplace:
         calculates marginal likelihood
         Args:
             Ks_new: new covariance if needed
-        Returns: np.Variable for marginal likelihood
+        Returns: np.array for marginal likelihood
 
         """
 
@@ -336,7 +336,7 @@ class GPLaplace:
                 right_side = np.dot(WK, g_m) + g_n
             else:
                 cov_term = np.dot(WK, g_m)
-                noise_term = np.multiply(np.sqrt(self.k_diag), g_n)
+                noise_term = np.multiply(W_kd, g_n)
                 right_side = np.multiply(self.precondition,
                                          cov_term + noise_term)
             right_side = np.nan_to_num(right_side)

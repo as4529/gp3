@@ -4,8 +4,8 @@ def kron(A, B):
     """
     Kronecker product of two matrices
     Args:
-        A (np.Variable): first matrix for kronecker product
-        B (np.Variable): second matrix
+        A (np.array): first matrix for kronecker product
+        B (np.array): second matrix
 
     Returns: kronecker product of A and B
 
@@ -30,7 +30,7 @@ def kron_list(matrices):
     """
     Kronecker product of a list of matrices
     Args:
-        matrices (list of np.Variable): list of matrices
+        matrices (list of np.array): list of matrices
 
     Returns:
 
@@ -47,9 +47,9 @@ def kron_mvp(Ks, v):
     """
     Matrix vector product using Kronecker structure
     Args:
-        Ks (list of np.Variable): list of matrices
+        Ks (list of np.array): list of matrices
         of K
-        v (np.Variable): vector to multiply K by
+        v (np.array): vector to multiply K by
 
     Returns: matrix vector product of K and v
 
