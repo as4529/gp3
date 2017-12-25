@@ -16,20 +16,12 @@ gp3 leverages [autograd](https://github.com/HIPS/autograd) to allow for custom l
 
 For more information on structure-exploiting inference for GPs, see the following:
 
-Flaxman, Seth, Wilson, Andrew Gordon, Neil, Daniel B., Nickish, Hannes, Smola, Alexander J.
-(2015). *Fast Kronecker Inference in Gaussian Processes with Non-Gaussian Likelihoods*. Proceed-
-ings of the 32nd International Conference on Machine Learning.
+Flaxman, Seth, Wilson, Andrew Gordon, Neil, Daniel B., Nickish, Hannes, Smola, Alexander J. (2015). *Fast Kronecker Inference in Gaussian Processes with Non-Gaussian Likelihoods*. Proceedings of the 32nd International Conference on Machine Learning.
 
-Rasmussen, C. E. and Williams, C. K. I. (2006). *Gaussian processes for Machine Learning*.The
-MIT Press.
+Rasmussen, C. E. and Williams, C. K. I. (2006). *Gaussian processes for Machine Learning*.The MIT Press.
 
-Wilson, Andrew Gordon, Gilboa, Elad, Nehorai, Arye, and Cunningham, John P. (2014). *Fast Ker-
-nel Learning for Multidimensional Pattern Extrapolation*. 27th Conference on Neural Information
-Processing Systems (NIPS 2014).
+Wilson, Andrew Gordon, Gilboa, Elad, Nehorai, Arye, and Cunningham, John P. (2014). *Fast Kernel Learning for Multidimensional Pattern Extrapolation*. 27th Conference on Neural Information Processing Systems (NIPS 2014).
 
-Wilson, Andrew Gordon, Dann, Christoph, Nickish Hannes (2015). *Thoughts on Massively Scalable
-Gaussian Processes*
+Wilson, Andrew Gordon, Dann, Christoph, Nickish Hannes (2015). *Thoughts on Massively Scalable Gaussian Processes*
 
-Wilson, Andrew Gordon, Hu, Zhiting, Salakhutdinov, Ruslan, Xing, Eric P. (2016). *Stochastic
-Variational Deep Kernel Learning*. 29th Conference on Neural Information Processing Systems
-(NIPS 2016).
+Wilson, Andrew Gordon, Hu, Zhiting, Salakhutdinov, Ruslan, Xing, Eric P. (2016). *Stochastic Variational Deep Kernel Learning*. 29th Conference on Neural Information Processing Systems (NIPS 2016).
