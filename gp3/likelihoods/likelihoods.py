@@ -1,30 +1,22 @@
 import tensorflow as tf
-import numpy as np
+import autograd.numpy as np
 
 """
 basic likelihood class
 """
 
-class PoissonLike:
+class Poisson:
     """
-    Implements Poisson likelihood
+    Implements Poisson likelihood with exponential link
     """
     def log_like(self, log_rate, y):
 
         return np.multiply(y, log_rate) - np.exp(log_rate)
 
-    def grad(self, log_rate, y):
-
-        return y - np.exp(log_rate)
-
-    def hess(self, log_rate, y):
-
-        return -np.exp(log_rate)
-
-class BernoulliSigmoidLike:
+class Bernoulli:
 
     """
-    Implements Bernoulli sigmoid likelihood
+    Implements Bernoulli likelihood with logistic sigmoid link
     """
     def log_like(self, y, g):
 

@@ -1,4 +1,5 @@
-import numpy as np
+import autograd.numpy as np
+from autograd import elementwise_grad as egrad
 from gp3.utils.kron import kron_list, kron_mvp
 from tqdm import trange
 from copy import deepcopy
@@ -11,7 +12,7 @@ Stochastic Variational Inference for Gaussian Processes with Non-Gaussian Likeli
 """
 
 ## IDEA: Adapt noise
-class GPSVI:
+class SVI:
 
 
     def __init__(self, kernel, likelihood, X, y, mu, noise = 1e-2, obs_idx=None,
@@ -49,9 +50,8 @@ class GPSVI:
         self.trace_term, self.traces = self.calc_trace_term()
         self.cg_opt = CGOptimizer(self.cg_prod)
 
-        self.likelihood_opt = self.likelihood.grad
+        self.likelihood_opt = egrad(self.likelihood.log_like)
         self.q_mu = self.mu
-
 
     def run(self, its):
         """
@@ -66,7 +66,7 @@ class GPSVI:
         t = trange(its, leave=True, disable = 1-self.verbose)
 
         for i in t:
-            self.calc_trace_term()
+            self.trace_term, self.traces = self.calc_trace_term()
             KL_grad_R = self.grad_KL_R()
             KL_grad_mu = self.grad_KL_mu()
 
@@ -114,9 +114,9 @@ class GPSVI:
         Returns: Optimal step size
 
         """
-        step = 1.
+        step = 1e-3
 
-        while step > 1e-15:
+        while step > 1e-9:
 
             R_search = [np.clip(R + step*R_grad, 0., np.max(R))
                         for R_grad, R in Rs_grads]
@@ -212,7 +212,6 @@ class GPSVI:
 
         dr = self.likelihood_opt(r_obs, self.y)
         dr[np.isnan(dr)] = 0.
-        self.dr = dr
         grads_R = []
 
         for d in range(len(self.Rs)):
@@ -229,7 +228,6 @@ class GPSVI:
                 if self.obs_idx is not None:
                     dR_eps = dR_eps[self.obs_idx]
                 grad_R[i, j] = np.sum(np.multiply(dr, dR_eps))
-
             grads_R.append(grad_R)
 
         grad_mu = np.zeros(self.n)
@@ -258,8 +256,7 @@ class GPSVI:
             K = K + np.diag(np.ones(K.shape[0]))*self.noise
             Ks.append(K)
 
-        K_invs = [np.linalg.inv(K)
-                       for K in Ks]
+        K_invs = [np.linalg.inv(K) for K in Ks]
 
         return Ks, K_invs
 

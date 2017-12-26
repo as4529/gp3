@@ -1,6 +1,7 @@
-import numpy as np
 import sys
 from tqdm import trange
+import autograd.numpy as np
+from autograd import elementwise_grad as egrad
 from gp3.utils.cg import CGOptimizer
 from gp3.utils.kron import kron_list, kron_mvp
 
@@ -27,7 +28,7 @@ Most of the notation follows R and W chapter 2, and Flaxman and Wilson
 """
 
 
-class GPLaplace:
+class Laplace:
 
     def __init__(self, mu, kernel, likelihood, X, y,
                  tau=0.5, obs_idx=None, verbose=False):
@@ -64,6 +65,9 @@ class GPLaplace:
         self.f = self.mu
         self.f_pred = self.f
         self.tau = tau
+
+        self.grad_func = egrad(self.likelihood.log_like)
+        self.hess_func = egrad(self.grad_func)
 
     def construct_Ks(self, kernel=None):
         """
@@ -129,7 +133,7 @@ class GPLaplace:
         delta = sys.float_info.max
         it = 0
 
-        t = trange(max_it, leave=True, disable = True)
+        t = trange(max_it, leave=True)
 
         for i in t:
             max_it, it, delta, step, psi = self.step(max_it, it, delta)
@@ -388,8 +392,8 @@ class GPLaplace:
         """
 
         obs_f = self.f[self.obs_idx]
-        obs_grad = self.likelihood.grad(obs_f, self.y)
-        obs_hess = self.likelihood.hess(obs_f, self.y)
+        obs_grad = self.grad_func(obs_f, self.y)
+        obs_hess = self.hess_func(obs_f, self.y)
         self.obs_hess = obs_hess
 
         agg_grad = np.zeros(self.n, np.float64)
@@ -404,10 +408,10 @@ class GPLaplace:
     def update_derivs(self):
 
         if self.obs_idx is None:
-            self.grads = self.likelihood.grad(self.f, self.y)
-            hess = self.likelihood.hess(self.f, self.y)
+            self.grads = self.grad_func(self.f, self.y)
+            hess = self.hess_func(self.f, self.y)
             self.hess = hess
-            self.W = -hess
+            self.W = np.clip(-hess, 1e-9, 1e16)
         else:
             self.grads, hess = self.gather_derivs()
             self.hess = hess
