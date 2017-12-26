@@ -2,21 +2,21 @@
 
 **G**aussian **P**rocesses with **P**robabilistic **P**rogramming
 
-**Overview**
+## Overview
 
 gp3 currently focuses on grid structure-exploiting inference for Gaussian Process Latent Variable Models. As of now, it supports Laplace approximation and Stochastic Variational Inference. For usage examples, see ```examples/basic.ipynb```. To view the notebooks with visualizations, I recommend using [nbviewer](https://nbviewer.jupyter.org/). Comprehensive documentation coming soon.
 
-**Installation**
+## Installation
 
 gp3 is currently compatible with Python 2.7. Install with
 
 ```pip install gp3```
 
-**Custom likelihoods**
+## Custom Likelihoods
 
 gp3 leverages [autograd](https://github.com/HIPS/autograd) to allow for custom likelihoods. See ```examples/lif.py``` and ```examples/lif.ipynb``` for examples.
 
-**References**
+## References
 
 For more information on structure-exploiting inference for GPs, see the following:
 
