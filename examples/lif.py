@@ -6,7 +6,7 @@ Example custom likelihood. Leaky integrate and fire model of a neuron.
 """
 class LIFLike():
 
-    def __init__(self, g = .03, v_rest = 0., v_reset = -5e4, v_thresh = 15.,
+    def __init__(self, g = .03, v_rest = 0., v_thresh = 15.,
                  phi = 0.025, t_max = 51, l = 1., ts = None):
 
         self.g = g
@@ -18,6 +18,7 @@ class LIFLike():
         self.ts = ts
         self.constant = self.calc_constant()
         self.const_mat = self.calc_const_mat()
+        self.t_idx = np.arange(len(self.ts)), self.ts
 
     def log_like(self, s, t):
 
@@ -25,10 +26,9 @@ class LIFLike():
         p = expit(v - self.v_thresh)
         logp = np.sum(np.log(1 - p), 1)
         logp = logp + np.multiply(t < self.t_max,
-                                  -np.log(1 - p[np.arange(len(t)), t]) +
-                                  np.log(p[np.arange(len(t)), t]))
-
-        return logp
+                                  -np.log(1 - p[self.t_idx]) +
+                                  np.log(p[self.t_idx]))
+        return np.nan_to_num(logp)
 
     def calc_constant(self):
 
@@ -56,11 +56,10 @@ class LIFLike():
 
 class LIFSim():
 
-    def __init__(self, g = .03, v_rest = 0., v_reset = -5e4, v_thresh = 15.,
+    def __init__(self, g = .03, v_rest = 0., v_thresh = 15.,
                  phi = 0.025, t_max = 50, l = 1.):
         self.g = g
         self.phi = phi
-        self.v_reset = v_reset
         self.v_thresh = v_thresh
         self.v_rest = v_rest
         self.t_max = t_max

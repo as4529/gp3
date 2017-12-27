@@ -420,3 +420,7 @@ class Laplace:
                           self.W)
 
         return self.grads, self.hess
+
+    def opt_kern(self):
+
+        return

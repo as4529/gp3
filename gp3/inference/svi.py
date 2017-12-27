@@ -12,7 +12,314 @@ Stochastic Variational Inference for Gaussian Processes with Non-Gaussian Likeli
 """
 
 ## IDEA: Adapt noise
-class SVI:
+
+class MFSVI:
+
+
+    def __init__(self, kernel, likelihood, X, y, mu, noise = 1e-2, obs_idx=None,
+                 verbose = False, max_grad = 1.0):
+        """
+
+        Args:
+            kernel (GPy.Kernel): kernel function
+            likelihood (): likelihood function. Requires log_like(), grad(), and hess()
+            functions
+            X (): data
+            y (): responses
+            mu (): prior mean
+            noise (): noise variance
+            obs_idx (): if dealing with partial grid, indices of grid that are observed
+            verbose (): print or not
+        """
+
+        self.X = X
+        self.d = self.X.shape[1]
+        self.y = y
+        self.n = self.X.shape[0]
+        self.noise = noise
+        self.max_grad = max_grad
+        self.likelihood = likelihood
+        self.kernel = kernel
+        self.elbos = []
+        self.likes = []
+        self.kls = []
+        self.steps = []
+        self.obs_idx = obs_idx
+        self.verbose = verbose
+
+        self.mu_grad_norms = []
+        self.S_grad_norms = []
+
+        self.Ks, self.K_invs = self.construct_Ks()
+        self.k_inv_diag = self.calc_k_inv_diag()
+        self.det_K = self.log_det_K()
+        self.mu = mu
+
+        self.likelihood_opt = egrad(self.likelihood.log_like)
+        self.q_mu = self.mu
+        self.q_S = np.ones(self.n)
+
+
+    def run(self, its, n_samples = 1):
+        """
+        Runs stochastic variational inference
+        Args:
+            its (): Number of iterations
+
+        Returns: Nothing, but updates instance variables
+
+        """
+
+        t = trange(its, leave=True)
+
+        for i in t:
+            KL_grad_S = self.grad_KL_S()
+            KL_grad_mu = self.grad_KL_mu()
+
+            grads_mu = []
+            grads_S = []
+            es = []
+            rs = []
+
+
+            for j in range(n_samples):
+                eps = np.random.normal(size = self.n)
+                r = self.q_mu + np.multiply(np.sqrt(np.exp(self.q_S)), eps)
+                like_grad_S, like_grad_mu = self.grad_like(r, eps)
+
+                grad_mu=  np.clip(-KL_grad_mu + like_grad_mu,
+                                  -self.max_grad, self.max_grad)
+                grad_S = np.clip(-KL_grad_S + like_grad_S,
+                                 -self.max_grad, self.max_grad)
+                self.mu_grad_norms.append(np.linalg.norm(grad_mu))
+                self.S_grad_norms.append(np.linalg.norm(grad_S))
+
+                grads_mu.append(grad_mu)
+                grads_S.append(grad_S)
+                es.append(eps)
+                rs.append(r)
+
+            S_and_grad = (np.mean(grads_S, 0), self.q_S)
+            mu_and_grad = (np.mean(grads_mu, 0), self.q_mu)
+            obj, kl, like = self.eval_obj(self.q_S, self.q_mu, rs)
+
+            self.elbos.append(-obj)
+            self.kls.append(kl)
+            self.likes.append(like)
+
+            ls_res = self.line_search(S_and_grad, mu_and_grad, obj, es)
+
+            step = 0.
+            if ls_res is not None:
+                step = ls_res[-1]
+                self.steps.append((i,step))
+
+            t.set_description("ELBO: " + '{0:.2f}'.format(-obj) +
+                              " | KL: " + '{0:.2f}'.format(kl) +
+                              " | logL: " + '{0:.2f}'.format(like) +
+                              " | step: " + str(step))
+            if ls_res is not None:
+                self.q_S = ls_res[0]
+                self.q_mu = ls_res[1]
+        return
+
+    def line_search(self, S_grads, mu_grads, obj_init, es):
+        """
+        Performs line search to find optimal step size
+
+        Args:
+            Rs_grads (): Gradients of R (variational covariances)
+            mu_grads (): Gradients of mu (variational mean)
+            obj_init (): Initial objective value
+            r (): transformed random Gaussian sample
+            eps (): random Gaussian sample
+
+        Returns: Optimal step size
+
+        """
+        step = 1.
+
+        while step > 1e-12:
+
+            S_search = S_grads[1] + step*S_grads[0]
+            mu_search = mu_grads[1] + step*mu_grads[0]
+
+            rs_search = [mu_search + np.multiply(np.sqrt(np.exp(S_search)), eps)
+                         for eps in es]
+
+            obj_search, kl_search, like_search = self.eval_obj(S_search, mu_search,
+                                                               rs_search)
+            if obj_init - obj_search > step:
+                return S_search, mu_search, obj_search, step
+
+            step = step*0.5
+
+        return None
+
+    def eval_obj(self, S, q_mu, rs):
+        """
+        Evaluates variational objective
+        Args:
+            Rs (): Variational covariances (Cholesky decomposition of Kronecker decomp)
+            q_mu (): Variational mean
+            r (): Transformed random sample
+
+        Returns: ELBO evaluation
+
+        """
+        objs = []
+        kls = []
+        likes = []
+
+        for r in rs:
+
+            kl = self.KL_calc(S, q_mu)
+            if self.obs_idx is not None:
+                r_obs = r[self.obs_idx]
+            else:
+                r_obs = r
+            like = np.sum(self.likelihood.log_like(r_obs, self.y))
+            obj = kl - like
+            objs.append(obj)
+            kls.append(kl)
+            likes.append(like)
+
+        return np.mean(objs), np.mean(kls), np.mean(likes)
+
+    def KL_calc(self, S, q_mu):
+        """
+        Calculates KL divergence between q and p
+        Args:
+            Rs (): Variational covariance
+            q_mu (): Variational mean
+
+        Returns: KL divergence between q and p
+
+        """
+        k_inv_mu = kron_mvp(self.K_invs, self.mu - q_mu)
+        mu_penalty = np.sum(np.multiply(self.mu -q_mu, k_inv_mu))
+        det_S = np.sum(S)
+        trace_term = np.sum(np.multiply(self.k_inv_diag, np.exp(S)))
+        kl = 0.5 * (self.det_K - self.n - det_S +
+                    trace_term + mu_penalty)
+
+        return max(0, kl)
+
+    def grad_KL_S(self):
+        """
+        Gradient of KL divergence w.r.t variational covariance
+        Returns: returns gradient
+
+        """
+        return 0.5*(-1. + np.multiply(self.k_inv_diag, np.exp(self.q_S)))
+
+    def grad_KL_mu(self):
+        """
+        Gradient of KL divergence w.r.t variational mean
+        Returns: returns gradient
+
+        """
+        return -kron_mvp(self.K_invs, self.mu - self.q_mu)
+
+    def grad_like(self, r, eps):
+        """
+        Gradient of likelihood w.r.t variational parameters
+        Args:
+            r (): Transformed random sample
+            eps (): Random sample
+
+        Returns: gradient w.r.t covariance, gradient w.r.t mean
+
+        """
+        if self.obs_idx is not None:
+            r_obs = r[self.obs_idx]
+        else:
+            r_obs = r
+
+        dr = self.likelihood_opt(r_obs, self.y)
+        dr[np.isnan(dr)] = 0.
+
+        if self.obs_idx is not None:
+            grad_mu = np.zeros(self.n)
+            grad_mu[self.obs_idx] = dr
+        else:
+            grad_mu = dr
+        grad_S = np.multiply(grad_mu, np.multiply(eps,
+                                      np.multiply(0.5/np.sqrt(np.exp(self.q_S)),
+                                                  np.exp(self.q_S))))
+
+        return grad_S, grad_mu
+
+    def construct_Ks(self, kernel=None):
+        """
+
+        Constructs kronecker-decomposed kernel matrix
+
+        Args:
+            kernel (): kernel (if not using kernel passed in constructor)
+
+        Returns: Rist of kernel evaluated at each dimension
+
+        """
+
+        if kernel is None:
+            kernel = self.kernel
+
+        Ks = []
+        for i in range(self.X.shape[1]):
+            K = kernel.K(np.expand_dims(np.unique(self.X[:, i]), 1))
+            K = K + np.diag(np.ones(K.shape[0])) * self.noise
+            Ks.append(K)
+
+        K_invs = [np.linalg.inv(K) for K in Ks]
+
+        return Ks, K_invs
+
+    def log_det_K(self):
+        """
+        Log determinant of prior covariance
+        Returns: log determinant
+
+        """
+        log_det = 0.
+
+        for K in self.Ks:
+            rank_d = self.n / K.shape[0]
+            det = np.linalg.slogdet(K)[1]
+            log_det += rank_d * det
+
+        return log_det
+
+    def calc_k_inv_diag(self, K_invs = None):
+
+        if K_invs is None:
+            K_invs = self.K_invs
+
+        diag = np.hstack([ii * np.diag(K_invs[self.d-1])
+                          for ii in np.diag(K_invs[self.d-2])])
+
+        for i in reversed(range(len(K_invs[:-2]))):
+            diag = np.hstack([ii * diag for ii in np.diag(K_invs[i])])
+
+        return diag
+
+    def predict(self):
+        """
+        GP predictions
+        Returns: predictions
+
+        """
+        Ks = []
+        for i in range(self.X.shape[1]):
+            K = self.kernel.K(np.expand_dims(np.unique(self.X[:, i]), 1))
+            Ks.append(K)
+
+        f_pred = kron_mvp(Ks, kron_mvp(self.K_invs, self.q_mu))
+
+        return f_pred
+
+
+class FullSVI:
 
 
     def __init__(self, kernel, likelihood, X, y, mu, noise = 1e-2, obs_idx=None,
@@ -32,6 +339,7 @@ class SVI:
         """
 
         self.X = X
+        self.d = self.X.shape[1]
         self.y = y
         self.n = self.X.shape[0]
         self.noise = noise
@@ -42,6 +350,8 @@ class SVI:
         self.kls = []
         self.obs_idx = obs_idx
         self.verbose = verbose
+        self.grad_Rs = []
+        self.grad_mus = []
 
         self.Ks, self.K_invs = self.construct_Ks()
         self.det_K = self.log_det_K()
@@ -63,7 +373,7 @@ class SVI:
 
         """
 
-        t = trange(its, leave=True, disable = 1-self.verbose)
+        t = trange(its, leave=True)
 
         for i in t:
             self.trace_term, self.traces = self.calc_trace_term()
@@ -74,8 +384,9 @@ class SVI:
             r = self.q_mu + kron_mvp(self.Rs, eps)
             like_grad_R, like_grad_mu = self.grad_like(r, eps)
 
-            grad_R = [-KL_grad_R[i] + like_grad_R[i] for i in range(len(KL_grad_R))]
-            grad_mu= -KL_grad_mu + like_grad_mu
+            grad_R = [np.clip(-KL_grad_R[i] + like_grad_R[i], -1e3, 1e3)
+                      for i in range(len(KL_grad_R))]
+            grad_mu= np.clip(-KL_grad_mu + like_grad_mu, -1e3, 1e3)
             R_and_grads = zip(grad_R, self.Rs)
             mu_and_grad = (grad_mu, self.q_mu)
 
@@ -114,11 +425,11 @@ class SVI:
         Returns: Optimal step size
 
         """
-        step = 1e-3
+        step = 1.
 
         while step > 1e-9:
 
-            R_search = [np.clip(R + step*R_grad, 0., np.max(R))
+            R_search = [R + step*R_grad
                         for R_grad, R in Rs_grads]
             mu_search = mu_grads[1] + step*mu_grads[0]
             r_search = mu_search + kron_mvp(R_search, eps)
@@ -230,8 +541,11 @@ class SVI:
                 grad_R[i, j] = np.sum(np.multiply(dr, dR_eps))
             grads_R.append(grad_R)
 
-        grad_mu = np.zeros(self.n)
-        grad_mu[self.obs_idx] = dr
+        if self.obs_idx is not None:
+            grad_mu = np.zeros(self.n)
+            grad_mu[self.obs_idx] = dr
+        else:
+            grad_mu = dr
 
         return grads_R, grad_mu
 
@@ -316,8 +630,8 @@ class SVI:
         Returns: Rs (identity matrices)
 
         """
-        return [np.eye(K.shape[0])
-               for K in self.Ks]
+        return[np.eye(K.shape[0])
+            for K in self.Ks]
 
     def initialize_Rs_prior(self):
         """
@@ -383,3 +697,5 @@ class SVI:
         r = self.q_mu + kron_mvp(self.Rs, eps)
 
         return r
+
+
