@@ -1,4 +1,3 @@
-import tensorflow as tf
 import autograd.numpy as np
 
 """
@@ -18,8 +17,8 @@ class Bernoulli:
     """
     Implements Bernoulli likelihood with logistic sigmoid link
     """
-    def log_like(self, y, g):
+    def log_like(self, g, y):
 
-        return -tf.reduce_sum(tf.multiply(y, tf.log(1 + tf.exp(-g))) +
-                              tf.multiply(1 - y, tf.log(1 + tf.exp(g))))
+        return -np.multiply(y, np.log(1 + np.exp(-g))) - \
+                              np.multiply(1 - y, np.log(1 + np.exp(g)))
 

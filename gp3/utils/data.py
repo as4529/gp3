@@ -118,3 +118,4 @@ def weights_nn(X, U):
     weights_norm = weights / weights.sum(1, keepdims=1)
 
     return weights_norm
+

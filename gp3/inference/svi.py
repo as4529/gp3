@@ -7,8 +7,6 @@ from gp3.utils.cg import CGOptimizer
 
 """
 Stochastic Variational Inference for Gaussian Processes with Non-Gaussian Likelihoods
-
-
 """
 
 ## IDEA: Adapt noise
@@ -19,7 +17,6 @@ class MFSVI:
     def __init__(self, kernel, likelihood, X, y, mu, noise = 1e-2, obs_idx=None,
                  verbose = False, max_grad = 1.0):
         """
-
         Args:
             kernel (GPy.Kernel): kernel function
             likelihood (): likelihood function. Requires log_like(), grad(), and hess()
@@ -56,8 +53,8 @@ class MFSVI:
         self.mu = mu
 
         self.likelihood_opt = egrad(self.likelihood.log_like)
-        self.q_mu = self.mu
-        self.q_S = np.ones(self.n)
+        self.q_mu = np.random.normal(size = self.n)
+        self.q_S = np.random.normal(size = self.n)
 
 
     def run(self, its, n_samples = 1):
@@ -65,9 +62,7 @@ class MFSVI:
         Runs stochastic variational inference
         Args:
             its (): Number of iterations
-
         Returns: Nothing, but updates instance variables
-
         """
 
         t = trange(its, leave=True)
@@ -126,16 +121,13 @@ class MFSVI:
     def line_search(self, S_grads, mu_grads, obj_init, es):
         """
         Performs line search to find optimal step size
-
         Args:
             Rs_grads (): Gradients of R (variational covariances)
             mu_grads (): Gradients of mu (variational mean)
             obj_init (): Initial objective value
             r (): transformed random Gaussian sample
             eps (): random Gaussian sample
-
         Returns: Optimal step size
-
         """
         step = 1.
 
@@ -163,9 +155,7 @@ class MFSVI:
             Rs (): Variational covariances (Cholesky decomposition of Kronecker decomp)
             q_mu (): Variational mean
             r (): Transformed random sample
-
         Returns: ELBO evaluation
-
         """
         objs = []
         kls = []
@@ -192,9 +182,7 @@ class MFSVI:
         Args:
             Rs (): Variational covariance
             q_mu (): Variational mean
-
         Returns: KL divergence between q and p
-
         """
         k_inv_mu = kron_mvp(self.K_invs, self.mu - q_mu)
         mu_penalty = np.sum(np.multiply(self.mu -q_mu, k_inv_mu))
@@ -211,7 +199,10 @@ class MFSVI:
         Returns: returns gradient
 
         """
-        return 0.5*(-1. + np.multiply(self.k_inv_diag, np.exp(self.q_S)))
+        euc_grad = 0.5 * (-1. + np.multiply(self.k_inv_diag, np.exp(self.q_S)))
+        nat_adj = 2. / (np.exp(-self.q_S) * np.square(self.q_mu))
+
+        return np.multiply(euc_grad, nat_adj)
 
     def grad_KL_mu(self):
         """
@@ -219,7 +210,7 @@ class MFSVI:
         Returns: returns gradient
 
         """
-        return -kron_mvp(self.K_invs, self.mu - self.q_mu)
+        return -np.multiply(np.exp(self.q_S), kron_mvp(self.K_invs, self.mu - self.q_mu))
 
     def grad_like(self, r, eps):
         """
@@ -227,9 +218,7 @@ class MFSVI:
         Args:
             r (): Transformed random sample
             eps (): Random sample
-
         Returns: gradient w.r.t covariance, gradient w.r.t mean
-
         """
         if self.obs_idx is not None:
             r_obs = r[self.obs_idx]
@@ -252,14 +241,10 @@ class MFSVI:
 
     def construct_Ks(self, kernel=None):
         """
-
         Constructs kronecker-decomposed kernel matrix
-
         Args:
             kernel (): kernel (if not using kernel passed in constructor)
-
         Returns: Rist of kernel evaluated at each dimension
-
         """
 
         if kernel is None:
@@ -279,7 +264,6 @@ class MFSVI:
         """
         Log determinant of prior covariance
         Returns: log determinant
-
         """
         log_det = 0.
 
@@ -307,7 +291,6 @@ class MFSVI:
         """
         GP predictions
         Returns: predictions
-
         """
         Ks = []
         for i in range(self.X.shape[1]):
@@ -325,7 +308,6 @@ class FullSVI:
     def __init__(self, kernel, likelihood, X, y, mu, noise = 1e-2, obs_idx=None,
                  verbose = False):
         """
-
         Args:
             kernel (GPy.Kernel): kernel function
             likelihood (): likelihood function. Requires log_like(), grad(), and hess()
@@ -368,9 +350,7 @@ class FullSVI:
         Runs stochastic variational inference
         Args:
             its (): Number of iterations
-
         Returns: Nothing, but updates instance variables
-
         """
 
         t = trange(its, leave=True)
@@ -414,16 +394,13 @@ class FullSVI:
     def line_search(self, Rs_grads, mu_grads, obj_init, r, eps):
         """
         Performs line search to find optimal step size
-
         Args:
             Rs_grads (): Gradients of R (variational covariances)
             mu_grads (): Gradients of mu (variational mean)
             obj_init (): Initial objective value
             r (): transformed random Gaussian sample
             eps (): random Gaussian sample
-
         Returns: Optimal step size
-
         """
         step = 1.
 
@@ -449,9 +426,7 @@ class FullSVI:
             Rs (): Variational covariances (Cholesky decomposition of Kronecker decomp)
             q_mu (): Variational mean
             r (): Transformed random sample
-
         Returns: ELBO evaluation
-
         """
         kl = self.KL_calc(Rs, q_mu)
         if self.obs_idx is not None:
@@ -469,9 +444,7 @@ class FullSVI:
         Args:
             Rs (): Variational covariance
             q_mu (): Variational mean
-
         Returns: KL divergence between q and p
-
         """
         k_inv_mu = kron_mvp(self.K_invs, self.mu - q_mu)
         mu_penalty = np.sum(np.multiply(self.mu -q_mu, k_inv_mu))
@@ -489,7 +462,6 @@ class FullSVI:
         """
         Gradient of KL divergence w.r.t variational covariance
         Returns: returns gradient
-
         """
         return [np.diag(-2*self.n/self.Rs[d].shape[0]/
                          np.diag(self.Rs[d])) +\
@@ -501,7 +473,6 @@ class FullSVI:
         """
         Gradient of KL divergence w.r.t variational mean
         Returns: returns gradient
-
         """
         return -kron_mvp(self.K_invs, self.mu - self.q_mu)
 
@@ -511,9 +482,7 @@ class FullSVI:
         Args:
             r (): Transformed random sample
             eps (): Random sample
-
         Returns: gradient w.r.t covariance, gradient w.r.t mean
-
         """
         if self.obs_idx is not None:
             r_obs = r[self.obs_idx]
@@ -551,14 +520,10 @@ class FullSVI:
 
     def construct_Ks(self, kernel=None):
         """
-
         Constructs kronecker-decomposed kernel matrix
-
         Args:
             kernel (): kernel (if not using kernel passed in constructor)
-
         Returns: Rist of kernel evaluated at each dimension
-
         """
 
         if kernel is None:
@@ -579,9 +544,7 @@ class FullSVI:
         Calculates trace term for objective function
         Args:
             Rs (): trace of variational covariance, and individual trace over dimensions
-
         Returns:
-
         """
         if Rs is None:
             Rs = self.Rs
@@ -597,9 +560,7 @@ class FullSVI:
         Log determinant of variational covariance
         Args:
             Rs (): Kronecker decomposed variational covariance
-
         Returns: determinant
-
         """
         if Rs is None:
             Rs = self.Rs
@@ -612,7 +573,6 @@ class FullSVI:
         """
         Log determinant of prior covariance
         Returns: log determinant
-
         """
         log_det = 0.
 
@@ -628,7 +588,6 @@ class FullSVI:
         Initializes upper triangular decomp of kronecker decomp of vairational covariance
         using identity matrix
         Returns: Rs (identity matrices)
-
         """
         return[np.eye(K.shape[0])
             for K in self.Ks]
@@ -637,7 +596,6 @@ class FullSVI:
         """
         Initializes Rs using cholesky decomps of prior covariance
         Returns: Rs (cholesky decomp of prior covariances)
-
         """
         return [np.transpose(np.linalg.cholesky(K))
                 for K in self.Ks]
@@ -646,16 +604,13 @@ class FullSVI:
         """
         Returns full variaitonal covariance (based on kronecker decomps)
         Returns: Full variational covariance
-
         """
         return kron_list([np.dot(np.transpose(R), R) for R in self.Rs])
 
 
     def full_K(self):
         """
-
         Returns: full prior covariance
-
         """
         return kron_list(self.Ks)
 
@@ -663,7 +618,6 @@ class FullSVI:
         """
         GP predictions
         Returns: predictions
-
         """
         Ks = []
         for i in range(self.X.shape[1]):
@@ -680,9 +634,7 @@ class FullSVI:
         Args:
             A ():
             x ():
-
         Returns:
-
         """
         return kron_mvp(A, x)
 
@@ -690,12 +642,9 @@ class FullSVI:
         """
         Draws a sample from the GPLVM posterior
         Returns: sample
-
         """
 
         eps = np.random.normal(size = self.n)
         r = self.q_mu + kron_mvp(self.Rs, eps)
 
         return r
-
-
