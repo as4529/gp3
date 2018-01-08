@@ -1,6 +1,6 @@
 # gp3
 
-**G**aussian **P**rocesses with **P**robabilistic **P**rogramming
+Gaussian Processes with Probabilistic Programming
 
 ## Overview
 
