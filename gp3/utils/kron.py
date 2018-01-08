@@ -55,12 +55,20 @@ def kron_mvp(Ks, v):
 
     """
 
-    mvp = np.reshape(v,[Ks[-1].shape[0], -1])
+    mvp = v
 
-    for idx, k in enumerate(reversed(Ks)):
-        if idx > 0:
-            rows = k.shape[0]
-            mvp = np.reshape(mvp, [rows, -1])
+    for k in reversed(Ks):
+        mvp = np.reshape(mvp, [k.shape[0], -1])
         mvp = np.dot(k, mvp).T
 
     return np.reshape(mvp, [-1])
+
+def kron_list_diag(Ks):
+
+    diag = np.hstack([ii * np.diag(Ks[len(Ks)-1])
+                      for ii in np.diag(Ks[len(Ks)-2])])
+
+    for i in reversed(range(len(Ks[:-2]))):
+        diag = np.hstack([ii * diag for ii in np.diag(Ks[i])])
+
+    return diag

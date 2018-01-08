@@ -8,7 +8,7 @@ basic utilities for simulating data
 """
 
 
-def sim_f(X, k=GPy.kern.RBF(input_dim=2, variance=1., lengthscale=10), mu=3):
+def sim_f(X, kernel_func, kernel_params, mu=3):
     """
     simulates function values given X
     Args:
@@ -19,8 +19,8 @@ def sim_f(X, k=GPy.kern.RBF(input_dim=2, variance=1., lengthscale=10), mu=3):
     Returns: sampled function values
 
     """
-    return np.random.multivariate_normal(np.ones(X.shape[0]) * mu, k.K(X, X) +
-                                         np.diag(np.ones(X.shape[0]))*1e-12)
+    return np.random.multivariate_normal(np.ones(X.shape[0]) * mu,
+                                         kernel_func(kernel_params, X))
 
 def sim_X(D=2, N_dim=30, lower=0, upper=100):
     """

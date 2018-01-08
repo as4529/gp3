@@ -1,5 +1,5 @@
 from . import laplace
-from . import svi
+from . import mfsvi
 
 __allowed_symbols = ['laplace', 'svi',
                      'GPLaplace', 'GPSVI']
