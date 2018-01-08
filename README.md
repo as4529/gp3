@@ -4,15 +4,23 @@ Gaussian Processes with Probabilistic Programming
 
 ## Overview and Installation
 
-gp3 currently focuses on grid structure-exploiting inference for Gaussian Process Regression. As of now, it supports inference via Laplace approximation and Stochastic Variational Inference. For usage examples, see ```examples/basic.ipynb```. To view the notebooks with visualizations, I recommend using [nbviewer](https://nbviewer.jupyter.org/). Comprehensive documentation coming soon.
+gp3 currently focuses on grid structure-exploiting inference for Gaussian Process Regression with custom likelihoods and kernels. As of now, it supports inference via Laplace approximation and Stochastic Variational Inference. For usage examples, see ```examples/basic.ipynb```. To view the notebooks with visualizations, I recommend using [nbviewer](https://nbviewer.jupyter.org/). Comprehensive documentation coming soon.
 
 gp3 is currently compatible with Python 2.7. Install with
 
 ```pip install gp3```
 
-## Custom Likelihoods and Kernels
+## Features
 
-gp3 leverages [autograd](https://github.com/HIPS/autograd) to allow for inference on custom likelihoods and kernels. See ```examples/lif.py``` and ```examples/lif.ipynb``` for examples.
+There are already a couple of nice libraries for GP inference in Python: [GPy](https://github.com/SheffieldML/GPy) and [GPFlow](https://github.com/GPflow/GPflow), as well as one in Matlab, [GPML](http://www.gaussianprocess.org/gpml/code/matlab/doc/). Each of these libraries focuses on a different aspect of accessible GP inference. gp3's focuses are the following:
+
+**Structure Exploiting Inference**
+
+gp3 exclusively implements Gaussian Process inference that exploits grid-type structure in data. This currently includes Kronecker and Toeplitz structure, and will soon include inducing point methods that can leverage grid structure without requiring it in the data itself. See the references at the bottom for background on these approaches.
+
+**Custom Likelihoods and Kernels in Numpy**
+
+gp3 leverages [autograd](https://github.com/HIPS/autograd) to allow for inference on custom likelihoods and kernels without using a framework such as Tensorflow or PyTorch. While there are disadvantages to this approach, it can make it easier to prototype and experiment with new kernels and likelihoods. See the autograd page for a nice discussion about the tradeoffs of using autograd vs. Tensorflow/PyTorch.  See ```examples/lif.py``` and ```examples/lif.ipynb``` for examples of a custom likelihood function.
 
 ## Roadmap
 
