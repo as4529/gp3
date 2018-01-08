@@ -2,11 +2,9 @@
 
 Gaussian Processes with Probabilistic Programming
 
-## Overview
+## Overview and Installation
 
 gp3 currently focuses on grid structure-exploiting inference for Gaussian Process Regression. As of now, it supports inference via Laplace approximation and Stochastic Variational Inference. For usage examples, see ```examples/basic.ipynb```. To view the notebooks with visualizations, I recommend using [nbviewer](https://nbviewer.jupyter.org/). Comprehensive documentation coming soon.
-
-## Installation
 
 gp3 is currently compatible with Python 2.7. Install with
 
