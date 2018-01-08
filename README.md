@@ -4,7 +4,7 @@
 
 ## Overview
 
-gp3 currently focuses on grid structure-exploiting inference for Gaussian Process Regression. As of now, it supports Laplace approximation and Stochastic Variational Inference. For usage examples, see ```examples/basic.ipynb```. To view the notebooks with visualizations, I recommend using [nbviewer](https://nbviewer.jupyter.org/). Comprehensive documentation coming soon.
+gp3 currently focuses on grid structure-exploiting inference for Gaussian Process Regression. As of now, it supports inference via Laplace approximation and Stochastic Variational Inference. For usage examples, see ```examples/basic.ipynb```. To view the notebooks with visualizations, I recommend using [nbviewer](https://nbviewer.jupyter.org/). Comprehensive documentation coming soon.
 
 ## Installation
 
@@ -12,9 +12,22 @@ gp3 is currently compatible with Python 2.7. Install with
 
 ```pip install gp3```
 
-## Custom Likelihoods
+## Custom Likelihoods and Kernels
 
-gp3 leverages [autograd](https://github.com/HIPS/autograd) to allow for custom likelihoods. See ```examples/lif.py``` and ```examples/lif.ipynb``` for examples.
+gp3 leverages [autograd](https://github.com/HIPS/autograd) to allow for inference on custom likelihoods and kernels. See ```examples/lif.py``` and ```examples/lif.ipynb``` for examples.
+
+## Roadmap
+
+In Progress:
+
+Kernel optimization with SVI
+"Deep Kernel Learning" example
+
+Next:
+
+Exploit Toeplitz Structure with FFT (as described in "massively scalable GPs")
+Inference for Multi-output GPs
+Inference for Deep GPs
 
 ## References
 
