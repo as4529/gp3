@@ -18,16 +18,16 @@ gp3 leverages [autograd](https://github.com/HIPS/autograd) to allow for inferenc
 
 ## Roadmap
 
-**In Progress:
+**In Progress:**
 
-Kernel optimization with SVI
-"Deep Kernel Learning" example
+•Kernel optimization with SVI
+•"Deep Kernel Learning" example
 
-**Next:
+**Next:**
 
-Exploit Toeplitz Structure with FFT (as described in "massively scalable GPs")
-Inference for Multi-output GPs
-Inference for Deep GPs
+•Exploit Toeplitz Structure with FFT (as described in "massively scalable GPs")
+•Inference for Multi-output GPs
+•Inference for Deep GPs
 
 ## References
 
