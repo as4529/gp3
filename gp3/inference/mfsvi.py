@@ -3,7 +3,6 @@ from autograd import elementwise_grad as egrad, jacobian
 from gp3.utils.kron import kron_mvp, kron_list_diag
 from tqdm import trange
 from scipy.linalg import toeplitz
-from copy import copy
 
 """
 Stochastic Variational Inference for Gaussian Processes with Non-Gaussian Likelihoods
@@ -60,7 +59,8 @@ class MFSVI:
         """
         Runs stochastic variational inference
         Args:
-            its (): Number of iterations
+            its (int): Number of iterations
+            n_samples (int): Number of samples for SVI
         Returns: Nothing, but updates instance variables
         """
 
@@ -72,7 +72,6 @@ class MFSVI:
                 kern_grad = self.grad_kern()[0]
                 kern_grad_clip = np.clip(kern_grad, -self.max_grad, self.max_grad)
                 kern_and_grad = (kern_grad_clip, self.kernel_params)
-                print kern_grad
             else:
                 kern_and_grad = None
 
@@ -118,6 +117,7 @@ class MFSVI:
             obj_init (): Initial objective value
             r (): transformed random Gaussian sample
             eps (): random Gaussian sample
+            min_step (): minimum step for backtracking line search
         Returns: Optimal step size
         """
         step = 1.
@@ -253,6 +253,11 @@ class MFSVI:
         return grad_S, grad_mu
 
     def grad_kern(self):
+        """
+
+        Returns: Gradient of KL w.r.t base kernel parameters
+
+        """
 
         k_inv_mu =  self.q_mu - self.mu
         grads = []
@@ -293,9 +298,12 @@ class MFSVI:
         return -0.5*(term1 - term2 - term3), grads
 
     def nat_grad_kern(self):
+        """
 
+        Returns: Natural gradient of KL w.r.t base kernel parameters
+
+        """
         euc_grad, grads = self.grad_kern()
-        print "euc", euc_grad
         fisher = np.zeros((len(self.kernel_params), len(self.kernel_params)))
 
         for i in range(len(self.kernel_params)):
@@ -320,8 +328,8 @@ class MFSVI:
         if kernel_params is None:
             kernel_params = self.kernel_params
 
-        Ks = [kernel(kernel_params, X_dim) + np.diag(np.ones(X_dim.shape[0])*self.noise)
-              for X_dim in self.X_dims]
+        Ks = [toeplitz(kernel(kernel_params, X_dim[0], X_dim)) +\
+            np.diag(np.ones(X_dim.shape[0])*self.noise) for X_dim in self.X_dims]
         K_invs = [np.linalg.inv(K) for K in Ks]
 
         return Ks, K_invs

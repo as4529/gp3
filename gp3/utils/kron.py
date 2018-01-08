@@ -1,4 +1,5 @@
 import numpy as np
+from functools import reduce
 
 def kron(A, B):
     """
@@ -35,12 +36,7 @@ def kron_list(matrices):
     Returns:
 
     """
-    out = kron(matrices[0], matrices[1])
-
-    for i in range(2, len(matrices)):
-        out = kron(out, matrices[i])
-
-    return out
+    return reduce(kron, matrices)
 
 
 def kron_mvp(Ks, v):

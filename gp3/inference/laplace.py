@@ -4,6 +4,8 @@ import autograd.numpy as np
 from autograd import elementwise_grad as egrad
 from gp3.utils.cg import CGOptimizer
 from gp3.utils.kron import kron_list, kron_mvp
+from scipy.linalg import toeplitz
+from scipy.optimize import minimize
 
 
 """
@@ -30,8 +32,8 @@ Most of the notation follows R and W chapter 2, and Flaxman and Wilson
 
 class Laplace:
 
-    def __init__(self, mu, kernel, likelihood, X, y,
-                 tau=0.5, obs_idx=None, verbose=False):
+    def __init__(self, kernel_func, kernel_params, likelihood, X, y, mu = None,
+                 tau=0.5, obs_idx=None, verbose=False, noise = 1e-6):
         """
 
         Args:
@@ -48,10 +50,17 @@ class Laplace:
         self.X = X
         self.y = y
         self.n = self.X.shape[0]
+        self.d = self.X.shape[1]
+        self.X_dims = [np.expand_dims(np.unique(X[:,i]), 1) for i in range(self.d)]
+        if mu is None:
+            self.mu = np.zeros(self.n)
+        else:
+            self.mu = mu
         self.obs_idx = obs_idx
 
-        self.kernel = kernel
-        self.mu = mu
+        self.kernel_func = kernel_func
+        self.kernel_params = kernel_params
+        self.noise = noise
         self.likelihood = likelihood
         self.Ks = self.construct_Ks()
         self.K_eigs = [np.linalg.eig(K) for K in self.Ks]
@@ -69,22 +78,22 @@ class Laplace:
         self.grad_func = egrad(self.likelihood.log_like)
         self.hess_func = egrad(self.grad_func)
 
-    def construct_Ks(self, kernel=None):
+
+    def construct_Ks(self, kernel=None, kernel_params = None):
         """
-
         Constructs kronecker-decomposed kernel matrix
-
         Args:
             kernel (): kernel (if not using kernel passed in constructor)
-
-        Returns: List of kernel evaluated at each dimension
-
+        Returns: Rist of kernel evaluated at each dimension
         """
-        if kernel is None:
-            kernel = self.kernel
 
-        Ks = [kernel.K(np.expand_dims(np.unique(self.X[:, i]),
-              1)) for i in range(self.X.shape[1])]
+        if kernel is None:
+            kernel = self.kernel_func
+        if kernel_params is None:
+            kernel_params = self.kernel_params
+
+        Ks = [toeplitz(kernel(kernel_params, X_dim[0], X_dim)) +\
+            np.diag(np.ones(X_dim.shape[0])*self.noise) for X_dim in self.X_dims]
 
         return Ks
 
@@ -133,7 +142,7 @@ class Laplace:
         delta = sys.float_info.max
         it = 0
 
-        t = trange(max_it, leave=True)
+        t = trange(max_it)
 
         for i in t:
             max_it, it, delta, step, psi = self.step(max_it, it, delta)
@@ -142,6 +151,7 @@ class Laplace:
             if delta < 1e-9:
                 break
 
+        self.f_pred = kron_mvp(self.Ks, self.alpha) + self.mu
         self.update_derivs()
 
         return
@@ -181,7 +191,6 @@ class Laplace:
             self.alpha = self.alpha + delta_alpha*step_size
             self.alpha = np.where(np.isnan(self.alpha),
                                   np.ones_like(self.alpha) * 1e-9, self.alpha)
-            self.f_pred = kron_mvp(self.Ks, self.alpha) + self.mu
 
         it = it + 1
 
@@ -268,7 +277,7 @@ class Laplace:
         return -np.sum(self.likelihood.log_like(f, self.y)) +\
             0.5 * np.sum(np.multiply(alpha, f - self.mu))
 
-    def marginal(self, Ks_new=None):
+    def marginal(self, kernel_params):
         """
         calculates marginal likelihood
         Args:
@@ -277,10 +286,16 @@ class Laplace:
 
         """
 
-        if Ks_new is None:
-            Ks = self.Ks
-        else:
-            Ks = Ks_new
+        if kernel_params is not None:
+            self.Ks = self.construct_Ks(self.kernel_func, kernel_params)
+            self.alpha = np.zeros([self.X.shape[0]])
+            self.W = np.zeros([self.X.shape[0]])
+            self.grads = np.zeros([self.X.shape[0]])
+            self.f = self.mu
+            self.f_pred = self.f
+            self.run(10)
+
+        Ks = self.Ks
         eigs = [np.expand_dims(np.linalg.eig(K)[0], 1) for K in Ks]
         eig_K = np.squeeze(kron_list(eigs))
         self.eig_K = eig_K
@@ -309,7 +324,7 @@ class Laplace:
                                    np.multiply(eig_K, self.W)))
         like = np.sum(self.likelihood.log_like(self.f, self.y))
 
-        return pen+eigs+like
+        return -(pen+eigs+like)
 
     def variance(self, n_s):
         """
@@ -348,12 +363,14 @@ class Laplace:
             var += np.square(np.squeeze(kron_mvp(self.Ks,
                                         np.multiply(np.sqrt(self.W), r))))
 
-        return np.clip(np.squeeze(self.kernel.K(np.array([[0.]]), np.array([[0.]]))) -
+        return np.clip(np.squeeze(self.kernel_func(self.kernel_params,
+            np.array([[0.]]), np.array([[0.]]))) -
                           var/n_s*1.0, 0., 1e3)
 
     def predict_mean(self, x_new):
 
-        k_dims = [self.kernel.K(np.expand_dims(np.unique(self.X[:, d]), 1),
+        k_dims = [self.kernel_func(self.kernel_params,
+                                   np.expand_dims(np.unique(self.X[:, d]), 1),
                                    np.expand_dims(x_new[:, d], 1))
                   for d in self.X.shape[1]]
         kx = np.squeeze(kron_list(k_dims))
@@ -423,4 +440,6 @@ class Laplace:
 
     def opt_kern(self):
 
-        return
+        init_params = self.kernel_params
+
+        return minimize(self.marginal, init_params, jac = False, method='CG')
