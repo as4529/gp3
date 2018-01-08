@@ -16,7 +16,7 @@ There are already a couple of nice libraries for GP inference in Python: [GPy](h
 
 **Structure Exploiting Inference**
 
-gp3 exclusively implements Gaussian Process inference that exploits grid structure in covariates (X). This currently includes Kronecker and Toeplitz structure, and will soon include inducing point methods that can leverage grid structure without requiring it in the data itself. See the references at the bottom for background on these approaches.
+gp3 exclusively implements Gaussian Process inference that exploits grid structure in covariates (X). This currently includes methods that leverage Kronecker and Toeplitz structure, and will soon include inducing point methods that can leverage grid structure without requiring it in the data itself. See the references at the bottom for background on these approaches.
 
 **Custom Likelihoods and Kernels in Numpy**
 
