@@ -3,6 +3,8 @@ from autograd import elementwise_grad as egrad, jacobian
 from gp3.utils.kron import kron_mvp, kron_list_diag
 from tqdm import trange
 from scipy.linalg import toeplitz
+from scipy.linalg import solve
+from gp3.kernels.kernels import softmax
 
 """
 Stochastic Variational Inference for Gaussian Processes with Non-Gaussian Likelihoods
@@ -12,7 +14,7 @@ class MFSVI:
 
 
     def __init__(self, kernel_func, kernel_params, likelihood, X, y,
-                 mu = None, noise = 1e-2, obs_idx=None, max_grad = 1.,
+                 mu = None, obs_idx=None, max_grad = 1., noise = 1e-2,
                  opt_kernel = False):
         """
         Args:
@@ -36,7 +38,6 @@ class MFSVI:
         else:
             self.mu = mu
         self.obs_idx = obs_idx
-        self.noise = noise
         self.max_grad = max_grad
         self.likelihood = likelihood
 
@@ -44,6 +45,7 @@ class MFSVI:
         self.grad_norms = []
 
         self.kernel_func, self.kernel_params = kernel_func, kernel_params
+        self.noise = noise
         self.Ks, self.K_invs = self.construct_Ks()
         self.k_inv_diag = kron_list_diag(self.K_invs)
         self.det_K = self.log_det_K()
@@ -53,7 +55,7 @@ class MFSVI:
 
         self.likelihood_opt = egrad(self.likelihood.log_like)
         self.q_mu = self.mu
-        self.q_S = np.ones(self.n)*np.log(self.Ks[0][0,0]**self.d)
+        self.q_S = np.ones(self.n)#*np.log(self.Ks[0][0,0]**self.d)
 
     def run(self, its, n_samples=1):
         """
@@ -69,7 +71,7 @@ class MFSVI:
         for i in t:
 
             if self.opt_kernel == True:
-                kern_grad = self.grad_kern()[0]
+                kern_grad = self.nat_grad_kern()
                 kern_grad_clip = np.clip(kern_grad, -self.max_grad, self.max_grad)
                 kern_and_grad = (kern_grad_clip, self.kernel_params)
             else:
@@ -267,7 +269,7 @@ class MFSVI:
         for i, X in enumerate(reversed(self.X_dims)):
 
             grad = self.kernel_opt(self.kernel_params, X[0], X)
-            toep_grad = np.stack([toeplitz(grad[:, :, i]) for i in xrange(grad.shape[2])],
+            toep_grad = np.stack([toeplitz(grad[:, :, k]) for k in xrange(grad.shape[2])],
                                  axis = -1)
             grads.append(toep_grad)
 
@@ -308,11 +310,12 @@ class MFSVI:
 
         for i in range(len(self.kernel_params)):
             for j in range(len(self.kernel_params)):
-                fisher[i,j] = kron_list_diag([np.dot(self.K_invs[d], grads[d][:,:,i]).dot(
-                                              self.K_invs[d]).dot(grads[d][:,:,j]) for d
-                                              in range(self.d)]).sum()
+                fisher[i,j] = 0.5*kron_list_diag([np.dot(self.K_invs[d], grads[d][:,:,i]).
+                                                 dot(self.K_invs[d]).dot(grads[d][:,:,j])
+                                                 for d in range(self.d)]).sum()
+        nat_grad = solve(fisher, euc_grad)
 
-        return np.dot(np.linalg.inv(0.5*fisher), euc_grad)
+        return nat_grad
 
 
     def construct_Ks(self, kernel=None, kernel_params = None):
@@ -328,8 +331,8 @@ class MFSVI:
         if kernel_params is None:
             kernel_params = self.kernel_params
 
-        Ks = [toeplitz(kernel(kernel_params, X_dim[0], X_dim)) +\
-            np.diag(np.ones(X_dim.shape[0])*self.noise) for X_dim in self.X_dims]
+        Ks = [kernel(kernel_params, X_dim) +
+              np.diag(np.ones(X_dim.shape[0])) * self.noise for X_dim in self.X_dims]
         K_invs = [np.linalg.inv(K) for K in Ks]
 
         return Ks, K_invs

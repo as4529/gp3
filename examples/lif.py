@@ -2,13 +2,24 @@ import autograd.numpy as np
 from autograd.scipy.special import expit
 
 """
-Example custom likelihood. Leaky integrate and fire model of a neuron.
+Example custom likelihood. Leaky integrate and fire model of a neuron. See
+the accompanying notebook for a description of the model.
 """
 class LIFLike():
 
     def __init__(self, g = .03, v_rest = 0., v_thresh = 15.,
                  phi = 0.025, t_max = 51, l = 1., ts = None):
+        """
 
+        Args:
+            g (): membrane resistance
+            v_rest (): resting voltage
+            v_thresh (): spiking threshold voltage
+            phi (): optical gain
+            t_max (): maximum time of recording
+            l (): power level of stimulation
+            ts (): spike timings
+        """
         self.g = g
         self.phi = phi
         self.v_thresh = v_thresh
@@ -21,6 +32,15 @@ class LIFLike():
         self.t_idx = np.arange(len(self.ts)), self.ts
 
     def log_like(self, s, t):
+        """
+        Calculates log likelihood based on LIF likelihood
+        Args:
+            s (): estimated gain of stimulation in space
+            t (): spike timings
+
+        Returns:
+
+        """
 
         v = np.multiply(np.exp(s),self.const_mat.T).T
         p = expit(v - self.v_thresh)
@@ -31,7 +51,11 @@ class LIFLike():
         return np.nan_to_num(logp)
 
     def calc_constant(self):
+        """
+        Calculates LIF constant ahead of time
+        Returns: Array of constants
 
+        """
         c_i = 0.
         constants = [c_i]
 
@@ -43,6 +67,11 @@ class LIFLike():
         return self.l*self.phi*np.array(constants)
 
     def calc_const_mat(self):
+        """
+
+        Returns: constant matrix
+
+        """
 
         if self.ts is None:
             return
@@ -55,9 +84,24 @@ class LIFLike():
         return const_mat
 
 class LIFSim():
+    """
+    Simulates a neuron with the LIF model
+    """
 
     def __init__(self, g = .03, v_rest = 0., v_thresh = 15.,
                  phi = 0.025, t_max = 50, l = 1.):
+
+        """
+
+        Args:
+            g (): membrane resistance
+            v_rest (): resting voltage
+            v_thresh (): spiking threshold voltage
+            phi (): optical gain
+            t_max (): maximum time of recording
+            l (): power level of stimulation
+        """
+
         self.g = g
         self.phi = phi
         self.v_thresh = v_thresh
