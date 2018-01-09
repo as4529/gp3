@@ -131,7 +131,7 @@ class Laplace:
         """
         if self.obs_idx is not None:
             k_diag = np.ones(self.X.shape[0]) * 1e12
-            k_diag[self.obs_idx] = 1.
+            k_diag[self.obs_idx] = self.noise
             self.k_diag = k_diag
             self.precondition = np.clip(1.0 / np.sqrt(self.k_diag),
                                                  0, 1)
