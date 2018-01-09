@@ -4,7 +4,7 @@ setup(
     name='gp3',
     packages = ['gp3', 'gp3.inference', 'gp3.likelihoods',
                 'gp3.utils'],
-    version='0.0.3',
+    version='0.0.4',
     description='Gaussian Processes with Probabilistic Programming',
     author='Anuj Sharma',
     author_email="anuj.sharma@columbia.edu",
