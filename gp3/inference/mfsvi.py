@@ -1,6 +1,6 @@
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad, jacobian
-from gp3.utils.kron import kron_mvp, kron_list_diag
+from gp3.utils.structure import kron_mvp, kron_list_diag
 from tqdm import trange
 from scipy.linalg import toeplitz
 from scipy.linalg import solve
@@ -55,7 +55,7 @@ class MFSVI:
 
         self.likelihood_opt = egrad(self.likelihood.log_like)
         self.q_mu = self.mu
-        self.q_S = np.ones(self.n)#*np.log(self.Ks[0][0,0]**self.d)
+        self.q_S = np.ones(self.n)*np.log(self.Ks[0][0,0]**self.d)
 
     def run(self, its, n_samples=1):
         """
@@ -66,7 +66,7 @@ class MFSVI:
         Returns: Nothing, but updates instance variables
         """
 
-        t = trange(its, leave=True)
+        t = trange(its, leave=False)
 
         for i in t:
 
@@ -110,7 +110,7 @@ class MFSVI:
         return
 
     def line_search(self, S_grads, mu_grads, kern_grads,
-                    obj_init, es, min_step = 1e-12):
+                    obj_init, es, min_step = 1e-9):
         """
         Performs line search to find optimal step size
         Args:
@@ -212,7 +212,6 @@ class MFSVI:
         """
         Gradient of KL divergence w.r.t variational covariance
         Returns: returns gradient
-
         """
         euc_grad = 0.5 * (-1. + np.multiply(self.k_inv_diag, np.exp(self.q_S)))
         nat_adj = 2. / (np.exp(-self.q_S) * np.square(self.q_mu))
@@ -223,7 +222,6 @@ class MFSVI:
         """
         Gradient of KL divergence w.r.t variational mean
         Returns: returns gradient
-
         """
         return -np.multiply(np.exp(self.q_S), kron_mvp(self.K_invs, self.mu - self.q_mu))
 
@@ -239,6 +237,8 @@ class MFSVI:
             r_obs = r[self.obs_idx]
         else:
             r_obs = r
+
+        self.r_obs = r_obs
 
         dr = self.likelihood_opt(r_obs, self.y)
         dr[np.isnan(dr)] = 0.
@@ -369,3 +369,8 @@ class MFSVI:
 
         return f_pred
 
+    def sample_post(self, n_samples = 1):
+
+        return self.q_mu + \
+               np.multiply(np.expand_dims(np.sqrt(np.exp(self.q_S)), 1),
+                           np.random.normal(size = (self.n, n_samples))).flatten()

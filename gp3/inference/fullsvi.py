@@ -1,6 +1,6 @@
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad
-from gp3.utils.kron import kron_list, kron_mvp
+from gp3.utils.structure import kron_list, kron_mvp
 from tqdm import trange
 
 class FullSVI:

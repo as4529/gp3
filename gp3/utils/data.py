@@ -107,6 +107,31 @@ def fill_grid(X, y):
 
     return X_grid, y_full, obs_idx, imag_idx
 
+def min_grid(X, y):
+
+    grid_size = len(np.unique(X[:,0]))
+    indices = []
+
+    print
+
+    grid_idx = [np.random.permutation(range(np.ceil(np.power(X.shape[0],
+                                      1./X.shape[1])).astype(np.int32)))
+                for _ in range(X.shape[1])]
+    grid_idx = zip(*grid_idx)
+
+    for g in grid_idx:
+        i = 0
+        for d in xrange(X.shape[1]):
+            i+= g[d]*grid_size**(X.shape[1] - d - 1)
+        indices.append(i)
+
+    X_partial = X[indices]
+    y_partial = y[indices]
+    X_partial = X_partial[np.lexsort(tuple(X_partial[:, d]
+                                      for d in reversed(range(X.shape[1]))))]
+
+    return X_partial, y_partial
+
 def weights_nn(X, U):
 
     dist = np.reshape(np.sum(np.square(X), 1), [-1, 1]) + np.reshape(

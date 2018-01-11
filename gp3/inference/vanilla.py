@@ -4,7 +4,7 @@ Vanilla GP inference with kronecker structure
 """
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad, jacobian
-from gp3.utils.kron import kron_mvp, kron_list_diag
+from gp3.utils.structure import kron_mvp, kron_list_diag
 from tqdm import trange
 from scipy.linalg import toeplitz
 from scipy.linalg import solve
