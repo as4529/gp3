@@ -14,7 +14,8 @@ class MFSVI:
 
 
     def __init__(self, kernel_func, kernel_params, likelihood, X, y,
-                 mu = None, obs_idx=None, max_grad = 1., noise = 1e-2,
+                 mu = None, obs_idx=None, max_grad = 100., noise = 0.001,
+                 optimizer = 'adam', step_size = 0.001, b1 = 0.9, b2 = 0.999, eps = 1.,
                  opt_kernel = False):
         """
         Args:
@@ -56,6 +57,12 @@ class MFSVI:
         self.q_mu = self.mu
         self.q_S = np.ones(self.n)*np.log(self.Ks[0][0,0]**self.d)
         self.likelihood_opt = egrad(self.likelihood.log_like)
+        self.optimizer = optimizer
+        if self.optimizer == "adam":
+            self.step_size = step_size
+            self.b1 = b1
+            self.b2 = b2
+            self.eps = eps
 
 
     def run(self, its, n_samples=1):
@@ -67,16 +74,11 @@ class MFSVI:
         Returns: Nothing, but updates instance variables
         """
 
-        t = trange(its, leave=False)
+        t = trange(its)
+        v_mu, v_s, v_k, m_mu, m_s, m_k  = (None for i in range(6))
 
         for i in t:
 
-            if self.opt_kernel == True:
-                kern_grad = self.nat_grad_kern()
-                kern_grad_clip = np.clip(kern_grad, -self.max_grad, self.max_grad)
-                kern_and_grad = (kern_grad_clip, self.kernel_params)
-            else:
-                kern_and_grad = None
 
             KL_grad_S, KL_grad_mu = self.grad_KL_S(), self.grad_KL_mu()
             grads_mu, grads_S, es, rs= ([] for i in range(4))
@@ -96,9 +98,8 @@ class MFSVI:
                 es.append(eps)
                 rs.append(r)
 
-            S_and_grad = (np.mean(grads_S, 0), self.q_S)
-            mu_and_grad = (np.mean(grads_mu, 0), self.q_mu)
-
+            S_vars= (self.q_S, np.mean(grads_S, 0))
+            mu_vars = (self.q_mu, np.mean(grads_mu, 0))
 
             obj, kl, like = self.eval_obj(self.q_S, self.q_mu, rs)
             self.objs.append((-obj, kl, like))
@@ -107,11 +108,19 @@ class MFSVI:
                               " | KL: " + '{0:.2f}'.format(kl) +
                               " | logL: " + '{0:.2f}'.format(like))
 
-            self.line_search(S_and_grad, mu_and_grad, kern_and_grad, obj, es)
+            self.q_mu, m_mu, v_mu = self.adam_step(mu_vars, m_mu, v_mu)
+            self.q_S, m_s, v_s = self.adam_step(S_vars, m_s, v_s)
+
+            if self.opt_kernel == True:
+                kern_grad = self.nat_grad_kern()
+                kern_grad_clip = np.clip(kern_grad, -self.max_grad, self.max_grad)
+                kern_and_grad = (self.kernel_params, kern_grad_clip)
+                self.kernel_params, m_k, v_k = self.adam_step(kern_and_grad,
+                                                              m_k, v_k)
+
         return
 
-    def adam_step(self, step_size=0.001, b1=0.9, b2=0.999, eps=1e-8,
-                  *args):
+    def adam_step(self, var_and_grad, m, v):
         """
         Adapted from autograd.misc.optimizers
         Args:
@@ -127,13 +136,18 @@ class MFSVI:
 
         """
 
-        for i, (var, m, v) in enumerate(args):
-            m = b1* m + (1-b1)*vars[i][0]
-            v = b2*v + (1-b2)*np.square*(v[0])
-            alpha_t = step_size*np.sqrt(1-b2)/(1-b1)
-            var = var - alpha_t*m/(np.sqrt(v) + eps)
+        var, grad = var_and_grad
+        if m is None:
+            m = np.zeros(len(var))
+        if v is None:
+            v = np.zeros(len(var))
 
-        return args
+        m = self.b1* m + (1-self.b1)*grad
+        v = self.b2*v + (1-self.b2)*np.square(v)
+        alpha_t = self.step_size*np.sqrt(1-self.b2)/(1-self.b1)
+        var = var + alpha_t*m/(np.sqrt(v) + self.eps)
+
+        return var, m, v
 
     def line_search(self, S_grads, mu_grads, kern_grads,
                     obj_init, es, min_step = 1e-9):
@@ -152,11 +166,11 @@ class MFSVI:
         t = 0
         while step > min_step:
 
-            S_search = S_grads[1] + step * S_grads[0]
-            mu_search = mu_grads[1] + step * mu_grads[0]
+            S_search = S_grads[0] + step * S_grads[1]
+            mu_search = mu_grads[0] + step * mu_grads[1]
 
             if kern_grads is not None:
-                kern_search = kern_grads[1] + step * kern_grads[0]
+                kern_search = kern_grads[0] + step * kern_grads[1]
             else:
                 kern_search = None
 
