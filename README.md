@@ -27,16 +27,15 @@ gp3 leverages [autograd](https://github.com/HIPS/autograd) to allow for inferenc
 **In Progress:**
 
 * Kernel optimization with SVI
-* Posterior variance estimates with Laplace
-* Deep Kernel Learning
-* Spectral Mixture Kernels
+* Accurate posterior variance estimates
+* Deep kernel example
+* Inference for Deep GPs
 
 **Next:**
 
 * Inducing Points
 * Exploit Toeplitz Structure with FFT (as described in "massively scalable GPs")
 * Inference for Multi-output GPs
-* Inference for Deep GPs
 
 ## References
 
