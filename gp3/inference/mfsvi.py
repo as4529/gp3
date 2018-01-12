@@ -53,9 +53,10 @@ class MFSVI:
         if opt_kernel == True:
             self.kernel_opt = jacobian(self.kernel_func)
 
-        self.likelihood_opt = egrad(self.likelihood.log_like)
         self.q_mu = self.mu
         self.q_S = np.ones(self.n)*np.log(self.Ks[0][0,0]**self.d)
+        self.likelihood_opt = egrad(self.likelihood.log_like)
+
 
     def run(self, its, n_samples=1):
         """
@@ -108,6 +109,31 @@ class MFSVI:
 
             self.line_search(S_and_grad, mu_and_grad, kern_and_grad, obj, es)
         return
+
+    def adam_step(self, step_size=0.001, b1=0.9, b2=0.999, eps=1e-8,
+                  *args):
+        """
+        Adapted from autograd.misc.optimizers
+        Args:
+            S_grads ():
+            mu_grads ():
+            kern_grads ():
+            step_size ():
+            b1 ():
+            b2 ():
+            eps ():
+
+        Returns:
+
+        """
+
+        for i, (var, m, v) in enumerate(args):
+            m = b1* m + (1-b1)*vars[i][0]
+            v = b2*v + (1-b2)*np.square*(v[0])
+            alpha_t = step_size*np.sqrt(1-b2)/(1-b1)
+            var = var - alpha_t*m/(np.sqrt(v) + eps)
+
+        return args
 
     def line_search(self, S_grads, mu_grads, kern_grads,
                     obj_init, es, min_step = 1e-9):
@@ -163,7 +189,7 @@ class MFSVI:
         Returns: ELBO evaluation
         """
         objs, kls, likes = ([] for i in range(3))
-        kl = self.KL_calc(S, q_mu, kern_params)
+        kl = self.KLqp(S, q_mu, kern_params)
 
         for r in rs:
 
@@ -175,12 +201,11 @@ class MFSVI:
             like = np.sum(self.likelihood.log_like(r_obs, self.y))
             obj = kl - like
             objs.append(obj)
-            kls.append(kl)
             likes.append(like)
 
-        return np.mean(objs), np.mean(kls), np.mean(likes)
+        return np.mean(objs), kl, np.mean(likes)
 
-    def KL_calc(self, S, q_mu, kern_params):
+    def KLqp(self, S, q_mu, kern_params):
         """
         Calculates KL divergence between q and p
         Args:
@@ -237,8 +262,6 @@ class MFSVI:
             r_obs = r[self.obs_idx]
         else:
             r_obs = r
-
-        self.r_obs = r_obs
 
         dr = self.likelihood_opt(r_obs, self.y)
         dr[np.isnan(dr)] = 0.
