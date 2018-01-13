@@ -4,7 +4,7 @@ from gp3.utils.structure import kron_mvp, kron_list_diag
 from tqdm import trange
 from scipy.linalg import toeplitz
 from scipy.linalg import solve
-from gp3.kernels.kernels import softmax
+from gp3.utils.optimizers import AdamOptimizer
 
 """
 Stochastic Variational Inference for Gaussian Processes with Non-Gaussian Likelihoods
@@ -14,8 +14,8 @@ class MFSVI:
 
 
     def __init__(self, kernel_func, kernel_params, likelihood, X, y,
-                 mu = None, obs_idx=None, max_grad = 100., noise = 0.001,
-                 optimizer = 'adam', step_size = 0.001, b1 = 0.9, b2 = 0.999, eps = 1.,
+                 mu = None, obs_idx=None, max_grad = 1e1, noise = 1e-2,
+                 step_size = 1e-3, b1 = 0.9, b2 = 0.999, eps = 1e-1,
                  opt_kernel = False):
         """
         Args:
@@ -40,29 +40,17 @@ class MFSVI:
             self.mu = mu
         self.obs_idx = obs_idx
         self.max_grad = max_grad
-        self.likelihood = likelihood
+        self.init_Ks(kernel_func, kernel_params, noise, opt_kernel)
 
-        self.objs = []
+        self.elbos = []
         self.grad_norms = []
-
-        self.kernel_func, self.kernel_params = kernel_func, kernel_params
-        self.noise = noise
-        self.Ks, self.K_invs = self.construct_Ks()
-        self.k_inv_diag = kron_list_diag(self.K_invs)
-        self.det_K = self.log_det_K()
-        self.opt_kernel = opt_kernel
-        if opt_kernel == True:
-            self.kernel_opt = jacobian(self.kernel_func)
 
         self.q_mu = self.mu
         self.q_S = np.ones(self.n)*np.log(self.Ks[0][0,0]**self.d)
+        self.optimizer = AdamOptimizer(step_size, b1, b2, eps)
+
+        self.likelihood = likelihood
         self.likelihood_opt = egrad(self.likelihood.log_like)
-        self.optimizer = optimizer
-        if self.optimizer == "adam":
-            self.step_size = step_size
-            self.b1 = b1
-            self.b2 = b2
-            self.eps = eps
 
 
     def run(self, its, n_samples=1):
@@ -74,11 +62,10 @@ class MFSVI:
         Returns: Nothing, but updates instance variables
         """
 
-        t = trange(its)
-        v_mu, v_s, v_k, m_mu, m_s, m_k  = (None for i in range(6))
+        t = trange(its, leave = False)
+        v_mu, v_s, v_k, m_mu, m_s, m_k  = (None for _ in range(6))
 
         for i in t:
-
 
             KL_grad_S, KL_grad_mu = self.grad_KL_S(), self.grad_KL_mu()
             grads_mu, grads_S, es, rs= ([] for i in range(4))
@@ -98,100 +85,33 @@ class MFSVI:
                 es.append(eps)
                 rs.append(r)
 
-            S_vars= (self.q_S, np.mean(grads_S, 0))
-            mu_vars = (self.q_mu, np.mean(grads_mu, 0))
-
             obj, kl, like = self.eval_obj(self.q_S, self.q_mu, rs)
-            self.objs.append((-obj, kl, like))
+            self.elbos.append(-obj)
 
             t.set_description("ELBO: " + '{0:.2f}'.format(-obj) +
                               " | KL: " + '{0:.2f}'.format(kl) +
                               " | logL: " + '{0:.2f}'.format(like))
 
-            self.q_mu, m_mu, v_mu = self.adam_step(mu_vars, m_mu, v_mu)
-            self.q_S, m_s, v_s = self.adam_step(S_vars, m_s, v_s)
-
+            S_vars= (self.q_S, np.mean(grads_S, 0))
+            mu_vars = (self.q_mu, np.mean(grads_mu, 0))
+            kern_and_grad = None
             if self.opt_kernel == True:
                 kern_grad = self.nat_grad_kern()
                 kern_grad_clip = np.clip(kern_grad, -self.max_grad, self.max_grad)
                 kern_and_grad = (self.kernel_params, kern_grad_clip)
-                self.kernel_params, m_k, v_k = self.adam_step(kern_and_grad,
-                                                              m_k, v_k)
+                self.kern_grad = kern_grad
 
-        return
+            self.q_mu, m_mu, v_mu = self.optimizer.step(mu_vars, m_mu, v_mu, i+1)
+            self.q_S, m_s, v_s = self.optimizer.step(S_vars, m_s, v_s, i+1)
+            if self.opt_kernel == True:
+                self.kernel_params, m_k, v_k = self.optimizer.step(kern_and_grad,
+                                                                   m_k, v_k, i+1)
+                self.Ks, self.K_invs = self.construct_Ks()
 
-    def adam_step(self, var_and_grad, m, v):
-        """
-        Adapted from autograd.misc.optimizers
-        Args:
-            S_grads ():
-            mu_grads ():
-            kern_grads ():
-            step_size ():
-            b1 ():
-            b2 ():
-            eps ():
-
-        Returns:
-
-        """
-
-        var, grad = var_and_grad
-        if m is None:
-            m = np.zeros(len(var))
-        if v is None:
-            v = np.zeros(len(var))
-
-        m = self.b1* m + (1-self.b1)*grad
-        v = self.b2*v + (1-self.b2)*np.square(v)
-        alpha_t = self.step_size*np.sqrt(1-self.b2)/(1-self.b1)
-        var = var + alpha_t*m/(np.sqrt(v) + self.eps)
-
-        return var, m, v
-
-    def line_search(self, S_grads, mu_grads, kern_grads,
-                    obj_init, es, min_step = 1e-9):
-        """
-        Performs line search to find optimal step size
-        Args:
-            Rs_grads (): Gradients of R (variational covariances)
-            mu_grads (): Gradients of mu (variational mean)
-            obj_init (): Initial objective value
-            r (): transformed random Gaussian sample
-            eps (): random Gaussian sample
-            min_step (): minimum step for backtracking line search
-        Returns: Optimal step size
-        """
-        step = 1.
-        t = 0
-        while step > min_step:
-
-            S_search = S_grads[0] + step * S_grads[1]
-            mu_search = mu_grads[0] + step * mu_grads[1]
-
-            if kern_grads is not None:
-                kern_search = kern_grads[0] + step * kern_grads[1]
-            else:
-                kern_search = None
-
-            rs_search = [mu_search + np.multiply(np.sqrt(np.exp(S_search)), eps)
-                         for eps in es]
-
-            obj_search, kl_search, like_search = self.eval_obj(S_search, mu_search,
-                                                               rs_search,
-                                                               kern_search)
-
-            if obj_init - obj_search > step*t:
-                self.q_S, self.q_mu  = S_search, mu_search
-                if kern_grads is not None:
-                    self.kernel_params = kern_search
-                    self.Ks, self.K_invs = self.construct_Ks()
+            if i > 100 and self.loss_check() == True:
                 return
 
-            step = step * 0.5
-            t += 1
-
-        return None
+        return
 
     def eval_obj(self, S, q_mu, rs, kern_params = None):
         """
@@ -255,14 +175,14 @@ class MFSVI:
         euc_grad = 0.5 * (-1. + np.multiply(self.k_inv_diag, np.exp(self.q_S)))
         nat_adj = 2. / (np.exp(-self.q_S) * np.square(self.q_mu))
 
-        return np.multiply(euc_grad, nat_adj)
+        return np.multiply(nat_adj, euc_grad)
 
     def grad_KL_mu(self):
         """
         Gradient of KL divergence w.r.t variational mean
         Returns: returns gradient
         """
-        return -np.multiply(np.exp(self.q_S), kron_mvp(self.K_invs, self.mu - self.q_mu))
+        return np.multiply(np.exp(self.q_S), -kron_mvp(self.K_invs, self.mu - self.q_mu))
 
     def grad_like(self, r, eps):
         """
@@ -354,7 +274,6 @@ class MFSVI:
 
         return nat_grad
 
-
     def construct_Ks(self, kernel=None, kernel_params = None):
         """
         Constructs kronecker-decomposed kernel matrix
@@ -373,6 +292,17 @@ class MFSVI:
         K_invs = [np.linalg.inv(K) for K in Ks]
 
         return Ks, K_invs
+
+    def init_Ks(self, kernel_func, kernel_params, noise, opt_kernel):
+
+        self.kernel_func, self.kernel_params = kernel_func, kernel_params
+        self.noise = noise
+        self.Ks, self.K_invs = self.construct_Ks()
+        self.k_inv_diag = kron_list_diag(self.K_invs)
+        self.det_K = self.log_det_K()
+        self.opt_kernel = opt_kernel
+        if opt_kernel == True:
+            self.kernel_opt = jacobian(self.kernel_func)
 
     def log_det_K(self, Ks = None):
         """
@@ -396,11 +326,7 @@ class MFSVI:
         GP predictions
         Returns: predictions
         """
-        Ks = []
-        for i in range(self.X.shape[1]):
-            X_d = np.expand_dims(np.unique(self.X[:, i]), 1)
-            K = self.kernel_func(self.kernel_params,X_d)
-            Ks.append(K)
+        Ks = [self.kernel_func(self.kernel_params, X_dim) for X_dim in self.X_dims]
 
         f_pred = kron_mvp(Ks, kron_mvp(self.K_invs, self.q_mu))
 
@@ -411,3 +337,52 @@ class MFSVI:
         return self.q_mu + \
                np.multiply(np.expand_dims(np.sqrt(np.exp(self.q_S)), 1),
                            np.random.normal(size = (self.n, n_samples))).flatten()
+
+    def loss_check(self):
+
+        return sum(x >= y for x, y in zip(self.elbos[-100:], self.elbos[-99:])) > 70
+
+
+    def line_search(self, S_grads, mu_grads, kern_grads,
+                    obj_init, es, min_step = 1e-9):
+        """
+        Performs line search to find optimal step size
+        Args:
+            Rs_grads (): Gradients of R (variational covariances)
+            mu_grads (): Gradients of mu (variational mean)
+            obj_init (): Initial objective value
+            r (): transformed random Gaussian sample
+            eps (): random Gaussian sample
+            min_step (): minimum step for backtracking line search
+        Returns: Optimal step size
+        """
+        step = 1.
+        t = 0
+        while step > min_step:
+
+            S_search = S_grads[0] + step * S_grads[1]
+            mu_search = mu_grads[0] + step * mu_grads[1]
+
+            if kern_grads is not None:
+                kern_search = kern_grads[0] + step * kern_grads[1]
+            else:
+                kern_search = None
+
+            rs_search = [mu_search + np.multiply(np.sqrt(np.exp(S_search)), eps)
+                         for eps in es]
+
+            obj_search, kl_search, like_search = self.eval_obj(S_search, mu_search,
+                                                               rs_search,
+                                                               kern_search)
+
+            if obj_init - obj_search > step*t:
+                self.q_S, self.q_mu  = S_search, mu_search
+                if kern_grads is not None:
+                    self.kernel_params = kern_search
+                    self.Ks, self.K_invs = self.construct_Ks()
+                return
+
+            step = step * 0.5
+            t += 1
+
+        return None

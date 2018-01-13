@@ -8,7 +8,7 @@ def rbf(params, X, X2 = None):
         X (): first X
         X2 (): second X (if there is one, otherwise just eval on X)
 
-    Returns:
+    Returns:s
 
     """
 

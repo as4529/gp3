@@ -2,7 +2,7 @@ import sys
 from tqdm import trange
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad
-from gp3.utils.cg import CGOptimizer
+from gp3.utils.optimizers import CGOptimizer
 from gp3.utils.structure import kron_list, kron_mvp
 from scipy.linalg import toeplitz
 from scipy.optimize import minimize
