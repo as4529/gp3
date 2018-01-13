@@ -1,10 +1,10 @@
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad, jacobian
 from gp3.utils.structure import kron_mvp, kron_list_diag
-from tqdm import trange
 from scipy.linalg import toeplitz
 from scipy.linalg import solve
 from gp3.utils.optimizers import AdamOptimizer
+from tqdm import trange, tqdm_notebook
 
 """
 Stochastic Variational Inference for Gaussian Processes with Non-Gaussian Likelihoods
@@ -41,9 +41,7 @@ class MFSVI:
         self.obs_idx = obs_idx
         self.max_grad = max_grad
         self.init_Ks(kernel_func, kernel_params, noise, opt_kernel)
-
         self.elbos = []
-        self.grad_norms = []
 
         self.q_mu = self.mu
         self.q_S = np.ones(self.n)*np.log(self.Ks[0][0,0]**self.d)
@@ -53,7 +51,7 @@ class MFSVI:
         self.likelihood_opt = egrad(self.likelihood.log_like)
 
 
-    def run(self, its, n_samples=1):
+    def run(self, its, n_samples=1, notebook_mode = True):
         """
         Runs stochastic variational inference
         Args:
@@ -62,7 +60,10 @@ class MFSVI:
         Returns: Nothing, but updates instance variables
         """
 
-        t = trange(its, leave = False)
+        if notebook_mode == True:
+            t = tqdm_notebook(xrange(its), leave=False)
+        else:
+            t = trange(its, leave = False)
         v_mu, v_s, v_k, m_mu, m_s, m_k  = (None for _ in range(6))
 
         for i in t:
@@ -109,6 +110,7 @@ class MFSVI:
                 self.Ks, self.K_invs = self.construct_Ks()
 
             if i > 100 and self.loss_check() == True:
+                print "converged at", i, "iterations"
                 return
 
         return
@@ -340,8 +342,7 @@ class MFSVI:
 
     def loss_check(self):
 
-        return sum(x >= y for x, y in zip(self.elbos[-100:], self.elbos[-99:])) > 70
-
+        return sum(x >= y for x, y in zip(self.elbos[-100:], self.elbos[-99:])) > 50
 
     def line_search(self, S_grads, mu_grads, kern_grads,
                     obj_init, es, min_step = 1e-9):
