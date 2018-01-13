@@ -97,7 +97,7 @@ class MFSVI:
             mu_vars = (self.q_mu, np.mean(grads_mu, 0))
             kern_and_grad = None
             if self.opt_kernel == True:
-                kern_grad = self.nat_grad_kern()
+                kern_grad = self.grad_kern()[0]
                 kern_grad_clip = np.clip(kern_grad, -self.max_grad, self.max_grad)
                 kern_and_grad = (self.kernel_params, kern_grad_clip)
                 self.kern_grad = kern_grad
@@ -265,16 +265,8 @@ class MFSVI:
 
         """
         euc_grad, grads = self.grad_kern()
-        fisher = np.zeros((len(self.kernel_params), len(self.kernel_params)))
 
-        for i in range(len(self.kernel_params)):
-            for j in range(len(self.kernel_params)):
-                fisher[i,j] = 0.5*kron_list_diag([np.dot(self.K_invs[d], grads[d][:,:,i]).
-                                                 dot(self.K_invs[d]).dot(grads[d][:,:,j])
-                                                 for d in range(self.d)]).sum()
-        nat_grad = solve(fisher, euc_grad)
-
-        return nat_grad
+        return
 
     def construct_Ks(self, kernel=None, kernel_params = None):
         """
