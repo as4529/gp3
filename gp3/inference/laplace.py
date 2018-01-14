@@ -32,7 +32,7 @@ Most of the notation follows R and W chapter 2, and Flaxman and Wilson
 
 class Laplace:
 
-    def __init__(self, kernel_func, kernel_params, likelihood, X, y, mu = None,
+    def __init__(self, kernel, likelihood, X, y, mu = None,
                  tau=0.5, obs_idx=None, verbose=False, noise = 1e-6):
         """
 
@@ -58,8 +58,7 @@ class Laplace:
             self.mu = mu
         self.obs_idx = obs_idx
 
-        self.kernel_func = kernel_func
-        self.kernel_params = kernel_params
+        self.kernel = kernel
         self.noise = noise
         self.likelihood = likelihood
         self.Ks = self.construct_Ks()
@@ -79,7 +78,7 @@ class Laplace:
         self.hess_func = egrad(self.grad_func)
 
 
-    def construct_Ks(self, kernel=None, kernel_params = None):
+    def construct_Ks(self, kernel=None):
         """
         Constructs kronecker-decomposed kernel matrix
         Args:
@@ -88,11 +87,9 @@ class Laplace:
         """
 
         if kernel is None:
-            kernel = self.kernel_func
-        if kernel_params is None:
-            kernel_params = self.kernel_params
+            kernel = self.kernel
 
-        Ks = [toeplitz(kernel(kernel_params, X_dim[0], X_dim)) +\
+        Ks = [toeplitz(kernel.eval(kernel.params, X_dim[0], X_dim)) +\
             np.diag(np.ones(X_dim.shape[0])*self.noise) for X_dim in self.X_dims]
 
         return Ks
@@ -277,7 +274,7 @@ class Laplace:
         return -np.sum(self.likelihood.log_like(f, self.y)) +\
             0.5 * np.sum(np.multiply(alpha, f - self.mu))
 
-    def marginal(self, kernel_params):
+    def marginal(self, kernel):
         """
         calculates marginal likelihood
         Args:
@@ -286,8 +283,8 @@ class Laplace:
 
         """
 
-        if kernel_params is not None:
-            self.Ks = self.construct_Ks(self.kernel_func, kernel_params)
+        if kernel.params is not None:
+            self.Ks = self.construct_Ks(self.kernel)
             self.alpha = np.zeros([self.X.shape[0]])
             self.W = np.zeros([self.X.shape[0]])
             self.grads = np.zeros([self.X.shape[0]])
@@ -363,13 +360,13 @@ class Laplace:
             var += np.square(np.squeeze(kron_mvp(self.Ks,
                                         np.multiply(np.sqrt(self.W), r))))
 
-        return np.clip(np.squeeze(self.kernel_func(self.kernel_params,
+        return np.clip(np.squeeze(self.kernel.eval(self.kernel.params,
             np.array([[0.]]), np.array([[0.]]))) -
                           var/n_s*1.0, 0., 1e3)
 
     def predict_mean(self, x_new):
 
-        k_dims = [self.kernel_func(self.kernel_params,
+        k_dims = [self.kernel.eval(self.kernel.params,
                                    np.expand_dims(np.unique(self.X[:, d]), 1),
                                    np.expand_dims(x_new[:, d], 1))
                   for d in self.X.shape[1]]
@@ -440,6 +437,6 @@ class Laplace:
 
     def opt_kern(self):
 
-        init_params = self.kernel_params
+        init_params = self.kernel.params
 
         return minimize(self.marginal, init_params, jac = False, method='CG')

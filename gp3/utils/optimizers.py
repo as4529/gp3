@@ -33,7 +33,7 @@ class CGOptimizer:
 
 class AdamOptimizer:
 
-    def __init__(self, step_size, b1, b2, eps):
+    def __init__(self, step_size = 1e-3, b1 = .9, b2 = .999, eps = 0.1):
         self.step_size = step_size
         self.b1 = b1
         self.b2 = b2

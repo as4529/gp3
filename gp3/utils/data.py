@@ -8,7 +8,7 @@ basic utilities for simulating data
 """
 
 
-def sim_f(X, kernel_func, kernel_params, mu=3):
+def sim_f(X, kernel, mu=3):
     """
     simulates function values given X
     Args:
@@ -20,7 +20,7 @@ def sim_f(X, kernel_func, kernel_params, mu=3):
 
     """
     return np.random.multivariate_normal(np.ones(X.shape[0]) * mu,
-                                         kernel_func(kernel_params, X))
+                                         kernel.eval(kernel.params, X))
 
 def sim_X(D=2, N_dim=30, lower=0, upper=100):
     """
@@ -45,7 +45,6 @@ def sim_X_equispaced(D=2, N_dim=20, lower=0, upper=100):
     grid = [np.arange(lower, upper, (upper-lower)*1.0/N_dim) for d in range(D)]
 
     return np.array(list(itertools.product(*grid)))
-
 
 def poisson_draw(f, noise_val):
     """
@@ -131,16 +130,3 @@ def min_grid(X, y):
                                       for d in reversed(range(X.shape[1]))))]
 
     return X_partial, y_partial
-
-def weights_nn(X, U):
-
-    dist = np.reshape(np.sum(np.square(X), 1), [-1, 1]) + np.reshape(
-        np.sum(np.square(U), 1), [1, -1]) - 2 * np.dot(X, U.T)
-    inv_dist = 1.0/dist
-    ranks = np.vstack([rankdata(i, method='ordinal') for i in inv_dist])
-    idx = ranks > ranks.shape[1] - 4
-    weights = inv_dist * idx
-    weights_norm = weights / weights.sum(1, keepdims=1)
-
-    return weights_norm
-
