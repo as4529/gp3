@@ -2,7 +2,7 @@ import sys
 from tqdm import trange
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad
-from gp3.utils.optimizers import CGOptimizer
+from gp3.utils.optimizers import CG
 from gp3.utils.structure import kron_list, kron_mvp
 from scipy.linalg import toeplitz
 from scipy.optimize import minimize
@@ -68,7 +68,7 @@ class Laplace:
         self.alpha = np.zeros([X.shape[0]])
         self.W = np.zeros([X.shape[0]])
         self.grads = np.zeros([X.shape[0]])
-        self.opt = CGOptimizer(self.cg_prod)
+        self.opt = CG(self.cg_prod)
 
         self.f = self.mu
         self.f_pred = self.f

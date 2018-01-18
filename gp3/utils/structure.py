@@ -57,7 +57,7 @@ def kron_mvp(Ks, v):
         mvp = np.reshape(mvp, [k.shape[0], -1])
         mvp = np.dot(k, mvp).T
 
-    return np.reshape(mvp, [-1])
+    return mvp.flatten()
 
 def kron_list_diag(Ks):
 

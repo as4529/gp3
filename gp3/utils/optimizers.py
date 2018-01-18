@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class CGOptimizer:
+class CG:
 
     def __init__(self, cg_prod=None, tol=1e-3):
         self.cg_prod = cg_prod
@@ -16,7 +16,7 @@ class CGOptimizer:
         r = self.cg_prod(A, x) - b
         p = - r
         r_k_norm = np.dot(r, r)
-        for i in xrange(2 * n):
+        for i in range(2 * n):
             Ap = self.cg_prod(A, p)
             alpha = r_k_norm / np.dot(p, Ap)
             x += alpha * p
@@ -30,8 +30,7 @@ class CGOptimizer:
 
         return x
 
-
-class AdamOptimizer:
+class Adam:
 
     def __init__(self, step_size = 1e-3, b1 = .9, b2 = .999, eps = 0.1):
         self.step_size = step_size
@@ -67,3 +66,21 @@ class AdamOptimizer:
         var = var + alpha_t*m/(np.sqrt(v) + self.eps)
 
         return var, m, v
+
+class RMSProp:
+
+    def __init__(self, step_size=1e-3, gamma=0.9, eps=0.1):
+        self.step_size = step_size
+        self.gamma = gamma
+        self.eps = eps
+
+    def step(self, var_and_grad, avg_sq_grad = None):
+
+        """Root mean squared prop: See Adagrad paper for details."""
+        var, grad = var_and_grad
+        if avg_sq_grad is None:
+            avg_sq_grad = np.ones(len(var))
+        avg_sq_grad = avg_sq_grad * self.gamma + grad ** 2 * (1 - self.gamma)
+        var = var + self.step_size * grad / (np.sqrt(avg_sq_grad) + self.eps)
+
+        return var, avg_sq_grad

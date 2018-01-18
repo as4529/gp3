@@ -1,5 +1,10 @@
-from gp3 import inference
-from gp3 import likelihoods
-from gp3 import utils
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-__allowed_symbols = ['inference', 'likelihoods', 'utils']
+from . import inference
+from . import likelihoods
+from . import utils
+from . import kernels
+
+_allowed_symbols = ['inference', 'likelihoods', 'utils', 'kernels']

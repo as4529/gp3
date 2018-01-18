@@ -111,8 +111,6 @@ def min_grid(X, y):
     grid_size = len(np.unique(X[:,0]))
     indices = []
 
-    print
-
     grid_idx = [np.random.permutation(range(np.ceil(np.power(X.shape[0],
                                       1./X.shape[1])).astype(np.int32)))
                 for _ in range(X.shape[1])]
