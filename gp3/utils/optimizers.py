@@ -32,7 +32,7 @@ class CG:
 
 class Adam:
 
-    def __init__(self, step_size = 1e-3, b1 = .9, b2 = .999, eps = 0.1):
+    def __init__(self, step_size = 1e-3, b1 = .9, b2 = .999, eps = .1):
         self.step_size = step_size
         self.b1 = b1
         self.b2 = b2
@@ -69,7 +69,7 @@ class Adam:
 
 class RMSProp:
 
-    def __init__(self, step_size=1e-3, gamma=0.9, eps=0.1):
+    def __init__(self, step_size=1e-3, gamma=0.9, eps=1.):
         self.step_size = step_size
         self.gamma = gamma
         self.eps = eps
