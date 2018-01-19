@@ -43,9 +43,14 @@ class DeepRBF:
     Inspired by autograd's Bayesian neural net example
     """
 
-    def __init__(self, layer_sizes, params):
+    def __init__(self, lengthscale, variance, noise,
+                 layer_sizes):
 
-        self.params = params
+        shapes = list(zip(layer_sizes[:-1], layer_sizes[1:]))
+        num_weights = sum((m + 1) * n for m, n in shapes)
+        weights = np.random.normal(size = num_weights)
+
+        self.params = self.pack_params(lengthscale, variance, noise, weights)
         self.shapes = list(zip(layer_sizes[:-1], layer_sizes[1:]))
 
     def eval(self, params, X, X2 = None):
@@ -61,40 +66,45 @@ class DeepRBF:
 
         """
 
-        ls, var, weights = self.unpack_params(params)
-
-        if X2 is None:
-            X2 = X
-
+        ls, var, noise, weights = self.unpack_params(params)
         X_nn = self.nn_predict(weights, X)
-        X2_nn = self.nn_predict(weights, X2)
+
+        if X2 is not None:
+            X2_nn = self.nn_predict(weights, X2)
+        else:
+            X2_nn = X_nn
 
         delta = np.expand_dims(X_nn / ls, 1) -\
                 np.expand_dims(X2_nn / ls, 0)
 
-        return var * np.exp(-0.5 * np.sum(delta ** 2, axis=2))
+        return var * np.exp(-0.5 * np.sum(delta ** 2, axis=2)) +\
+               np.diag(np.ones(X.shape[0]))*noise
 
     def unpack_params(self, params):
 
-        return softplus(params[0]), softplus(params[1]), params[2:]
+        return softplus(params[0]), softplus(params[1]), \
+               softplus(params[1]), params[2:]
 
     def unpack_layers(self, weights):
 
-        num_weight_sets = len(weights)
         for m, n in self.shapes:
-            yield weights[:, :m * n].reshape((num_weight_sets, m, n)), \
-                  weights[:, m * n:m * n + n].reshape((num_weight_sets, 1, n))
-            weights = weights[:, (m + 1) * n:]
+            yield weights[:m * n].reshape((m, n)), \
+                  weights[m * n:m * n + n].reshape((1, n))
+            weights = weights[(m + 1) * n:]
 
     def nn_predict(self, weights, inputs):
 
-        inputs = np.expand_dims(inputs, 0)
         outputs = None
         for W, b in self.unpack_layers(weights):
-            outputs = np.einsum('mnd,mdo->mno', inputs, W) + b
+            outputs = np.dot(inputs, W) + b
             inputs = softplus(outputs)
 
         return outputs
+
+    def pack_params(self, lengthscale, variance, noise, weights):
+
+        return np.hstack([inv_softplus(np.array([lengthscale, variance, noise])),
+                         weights])
 
 class SpectralMixture:
 

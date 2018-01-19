@@ -341,7 +341,6 @@ class MFSVI(SVIBase):
         for i, X in enumerate(reversed(self.X_dims)):
 
             grad = self.kernel_opt(self.kernel.params, X[0], X)
-            print grad.shape
             toep_grad = np.stack([toeplitz(grad[:, :, k])
                                   for k in range(grad.shape[2])],
                                  axis=-1)
