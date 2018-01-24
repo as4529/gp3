@@ -429,6 +429,8 @@ class FullSVI(SVIBase):
 
         self.Rs = self.initialize_Rs_prior()
         self.trace_term, self.traces = self.calc_trace_term()
+        self.v_mu, self.v_k, self.m_mu, self.m_k = (None for _ in range(6))
+        self.v_s, self.m_s = [], []
 
     def run(self, its):
         """
@@ -449,9 +451,11 @@ class FullSVI(SVIBase):
             r = self.q_mu + kron_mvp(self.Rs, eps)
             like_grad_R, like_grad_mu = self.grad_like(r, eps)
 
-            grad_R = [np.clip(-KL_grad_R[i] + like_grad_R[i], -1e3, 1e3)
+            grad_R = [np.clip(-KL_grad_R[i] + like_grad_R[i], -self.max_grad,
+                              self.max_grad)
                       for i in range(len(KL_grad_R))]
-            grad_mu= np.clip(-KL_grad_mu + like_grad_mu, -1e3, 1e3)
+            grad_mu= np.clip(-KL_grad_mu + like_grad_mu, -self.max_grad,
+                             self.max_grad)
             R_and_grads = zip(grad_R, self.Rs)
             mu_and_grad = (grad_mu, self.q_mu)
 

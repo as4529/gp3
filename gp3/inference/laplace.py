@@ -313,7 +313,7 @@ class Laplace:
             like = np.sum(self.likelihood.log_like(f_lim, self.y))
             like = np.where(np.isnan(like), np.zeros_like(like), like)
 
-            return pen+eigs+like
+            return -(pen+eigs+like)
 
         pen = -0.5 * np.sum(np.multiply(self.alpha,
                                    self.f - self.mu))
@@ -408,7 +408,6 @@ class Laplace:
         obs_f = self.f[self.obs_idx]
         obs_grad = self.grad_func(obs_f, self.y)
         obs_hess = self.hess_func(obs_f, self.y)
-        self.obs_hess = obs_hess
 
         agg_grad = np.zeros(self.n, np.float64)
         agg_hess = np.zeros(self.n, np.float64)
