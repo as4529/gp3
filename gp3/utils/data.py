@@ -19,6 +19,7 @@ def sim_f(X, kernel, mu=3):
     Returns: sampled function values
 
     """
+
     return np.random.multivariate_normal(np.ones(X.shape[0]) * mu,
                                          kernel.eval(kernel.params, X))
 

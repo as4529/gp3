@@ -1,11 +1,11 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from .data import *
 from .optimizers import *
 from .structure import *
 from .transforms import *
 
-_allowed_symbols = ['laplace', 'svi',
-                     'MFSVI', 'Laplace']
+__allowed_symbols = ['sim_f', 'sim_X', 'poisson_draw',
+                     'sim_X_equispaced', 'poisson_draw',
+                     'rand_partial_grid',
+                     'fill_grid', 'CG', 'Adam',
+                     'kron', 'kron_mvp', 'kron_list'
+                     'softplus', 'inv_softplus', '']

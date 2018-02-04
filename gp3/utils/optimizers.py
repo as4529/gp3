@@ -3,7 +3,7 @@ import numpy as np
 
 class CG:
 
-    def __init__(self, cg_prod=None, tol=1e-3):
+    def __init__(self, cg_prod=None, tol=1e-6):
         self.cg_prod = cg_prod
         self.tol = tol
 

@@ -6,6 +6,7 @@ from gp3.utils.optimizers import CG
 from gp3.utils.structure import kron_list, kron_mvp
 from scipy.linalg import toeplitz
 from scipy.optimize import minimize
+from .base import InfBase
 
 
 """
@@ -30,10 +31,10 @@ Most of the notation follows R and W chapter 2, and Flaxman and Wilson
 """
 
 
-class Laplace:
+class Laplace(InfBase):
 
-    def __init__(self, kernel, likelihood, X, y, mu = None,
-                 tau=0.5, obs_idx=None, verbose=False, noise = 1e-6):
+    def __init__(self, X, y, kernel, likelihood, mu = None,
+                 opt_kernel = False, tau=0.5, obs_idx=None, noise = 1e-6):
         """
 
         Args:
@@ -46,29 +47,14 @@ class Laplace:
             verbose (bool): verbose or not
         """
 
-        self.verbose = verbose
-        self.X = X
-        self.y = y
-        self.n = self.X.shape[0]
-        self.d = self.X.shape[1]
-        self.X_dims = [np.expand_dims(np.unique(X[:,i]), 1) for i in range(self.d)]
-        if mu is None:
-            self.mu = np.zeros(self.n)
-        else:
-            self.mu = mu
-        self.obs_idx = obs_idx
-
-        self.kernel = kernel
-        self.noise = noise
-        self.likelihood = likelihood
-        self.Ks = self.construct_Ks()
-        self.K_eigs = [np.linalg.eig(K) for K in self.Ks]
-        self.root_eigdecomp = None
+        super(Laplace, self).__init__(X, y, kernel, likelihood,
+                                      mu, obs_idx, opt_kernel, noise=noise)
 
         self.alpha = np.zeros([X.shape[0]])
         self.W = np.zeros([X.shape[0]])
         self.grads = np.zeros([X.shape[0]])
         self.opt = CG(self.cg_prod)
+        self.root_eigdecomp = None
 
         self.f = self.mu
         self.f_pred = self.f
@@ -76,23 +62,6 @@ class Laplace:
 
         self.grad_func = egrad(self.likelihood.log_like)
         self.hess_func = egrad(self.grad_func)
-
-
-    def construct_Ks(self, kernel=None):
-        """
-        Constructs kronecker-decomposed kernel matrix
-        Args:
-            kernel (): kernel (if not using kernel passed in constructor)
-        Returns: Rist of kernel evaluated at each dimension
-        """
-
-        if kernel is None:
-            kernel = self.kernel
-
-        Ks = [toeplitz(kernel.eval(kernel.params, X_dim[0], X_dim)) +\
-            np.diag(np.ones(X_dim.shape[0])*self.noise) for X_dim in self.X_dims]
-
-        return Ks
 
     def sqrt_eig(self):
         """
@@ -361,7 +330,7 @@ class Laplace:
                                         np.multiply(np.sqrt(self.W), r))))
 
         return np.clip(np.squeeze(self.kernel.eval(self.kernel.params,
-            np.array([[0.]]), np.array([[0.]]))) -
+            np.array([[0.]]), np.array([[0.]])))**self.d -
                           var/n_s*1.0, 0., 1e3)
 
     def predict_mean(self, x_new):

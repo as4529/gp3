@@ -5,7 +5,7 @@ from scipy.linalg import toeplitz
 from gp3.utils.optimizers import Adam
 from tqdm import trange, tqdm_notebook
 from copy import deepcopy
-import scipy
+from base import InfBase
 
 """
 Stochastic Variational Inference for Gaussian Processes with
@@ -13,74 +13,22 @@ Stochastic Variational Inference for Gaussian Processes with
 """
 
 
-class SVIBase(object):
 
-    def __init__(self, kernel, likelihood, X, y, mu=None, obs_idx=None,
-                 opt_kernel=False, max_grad=10.,
-                 optimizer=Adam()):
+class SVIBase(InfBase):
 
-        self.X = X
-        self.y = y
-        self.n, self.d = self.X.shape
-        self.X_dims = [np.expand_dims(np.unique(X[:, i]), 1)
-                       for i in range(self.d)]
-        if mu is None:
-            self.mu = np.zeros(self.n)
-        else:
-            self.mu = mu
-        self.obs_idx = obs_idx
-        self.max_grad = max_grad
-        self.init_Ks(kernel, opt_kernel)
+    def __init__(self, X, y, kernel, likelihood, mu = None, obs_idx = None,
+                 opt_kernel = False, noise = 1e-2,
+                 optimizer = Adam()):
+
+        super(SVIBase, self).__init__(X, y, kernel, likelihood,
+                                      mu, obs_idx, opt_kernel, noise=noise)
+
         self.elbos = []
         self.q_mu = self.mu
 
         self.likelihood = likelihood
         self.likelihood_opt = egrad(self.likelihood.log_like)
         self.optimizer = optimizer
-
-    def init_Ks(self, kernel, opt_kernel):
-
-        self.kernel = kernel
-        self.Ks, self.K_invs = self.construct_Ks()
-        self.k_inv_diag = kron_list_diag(self.K_invs)
-        self.det_K = self.log_det_K()
-        self.opt_kernel = opt_kernel
-        if opt_kernel:
-            self.kernel_opt = jacobian(self.kernel.eval)
-
-    def log_det_K(self, Ks=None):
-        """
-        Log determinant of prior covariance
-        Returns: log determinant
-        """
-        if Ks is None:
-            Ks = self.Ks
-
-        log_det = 0.
-
-        for K in Ks:
-            rank_d = self.n / K.shape[0]
-            det = np.linalg.slogdet(K)[1]
-            log_det += rank_d * det
-
-        return log_det
-
-    def construct_Ks(self, kernel=None):
-        """
-        Constructs kronecker-decomposed kernel matrix
-        Args:
-            kernel (): kernel (if not using kernel passed in constructor)
-        Returns: Rist of kernel evaluated at each dimension
-        """
-
-        if kernel is None:
-            kernel = self.kernel
-
-        Ks = [kernel.eval(kernel.params, X_dim)
-              for X_dim in self.X_dims]
-        K_invs = [np.linalg.inv(K) for K in Ks]
-
-        return Ks, K_invs
 
     def predict(self):
         """
@@ -97,35 +45,31 @@ class SVIBase(object):
 
         return f_pred
 
-
 class MFSVI(SVIBase):
 
-    def __init__(self, kernel, likelihood, X, y,
-                 mu=None, obs_idx=None, opt_kernel=False):
+    def __init__(self, X, y, kernel, likelihood,
+                 mu = None, obs_idx = None, opt_kernel = False):
         """
         Args:
-            kernel (): kernel function
-            likelihood (): likelihood function. Requires log_like(),
-             grad(), and hess()
+            kernel (GPy.Kernel): kernel function
+            likelihood (): likelihood function. Requires log_like(), grad(), and hess()
             functions
             X (): data
             y (): responses
             mu (): prior mean
             noise (): noise variance
-            obs_idx (): if dealing with partial grid, indices of grid
-             that are observed
+            obs_idx (): if dealing with partial grid, indices of grid that are observed
             verbose (): print or not
         """
 
-        super(MFSVI, self).__init__(kernel, likelihood, X, y,
+        super(MFSVI, self).__init__(X, y, kernel, likelihood,
                                     mu, obs_idx, opt_kernel)
 
-        self.q_S = np.ones(self.n) *\
-            np.log(self.Ks[0][0, 0] ** self.d)
+        self.q_S = np.ones(self.n) * np.log(self.Ks[0][0, 0] ** self.d)
         self.v_mu, self.v_s, self.v_k, self.m_mu, \
-            self.m_s, self.m_k = (None for _ in range(6))
+        self.m_s, self.m_k = (None for _ in range(6))
 
-    def run(self, its, n_samples=1, notebook_mode=True):
+    def run(self, its, n_samples=1, notebook_mode = True):
         """
         Runs stochastic variational inference
         Args:
@@ -134,21 +78,19 @@ class MFSVI(SVIBase):
         Returns: Nothing, but updates instance variables
         """
 
-        if notebook_mode:
+        if notebook_mode == True:
             t = tqdm_notebook(range(its), leave=False)
         else:
-            t = trange(its, leave=False)
+            t = trange(its, leave = False)
 
         for i in t:
 
-            KL_grad_S, KL_grad_mu = self.grad_KL_S(),\
-                                    self.grad_KL_mu()
-            grads_mu, grads_S, es, rs = ([] for i in range(4))
+            KL_grad_S, KL_grad_mu = self.grad_KL_S(), self.grad_KL_mu()
+            grads_mu, grads_S, es, rs= ([] for i in range(4))
 
             for j in range(n_samples):
                 eps = np.random.normal(size=self.n)
-                r = self.q_mu + np.multiply(np.sqrt(np.exp(self.q_S)),
-                                            eps)
+                r = self.q_mu + np.multiply(np.sqrt(np.exp(self.q_S)), eps)
                 like_grad_S, like_grad_mu = self.grad_like(r, eps)
 
                 grad_mu = np.clip(-KL_grad_mu + like_grad_mu,
@@ -161,56 +103,52 @@ class MFSVI(SVIBase):
                 es.append(eps)
                 rs.append(r)
 
-            if i % 50 == 0:
-                obj, kl, like = self.eval_obj(self.q_S, self.q_mu, rs)
-                self.elbos.append(-obj)
+            obj, kl, like = self.eval_obj(self.q_S, self.q_mu, rs)
+            self.elbos.append(-obj)
 
             t.set_description("ELBO: " + '{0:.2f}'.format(-obj) +
                               " | KL: " + '{0:.2f}'.format(kl) +
                               " | logL: " + '{0:.2f}'.format(like))
 
-            S_vars = (self.q_S, np.mean(grads_S, 0))
+            S_vars= (self.q_S, np.mean(grads_S, 0))
             mu_vars = (self.q_mu, np.mean(grads_mu, 0))
             kern_and_grad = None
 
-            if self.opt_kernel:
+            if self.opt_kernel == True:
                 kern_grad = self.grad_kern()
-                if kern_grad is None:
-                    print "kernel gradient failed"
-                    return
-
-                kern_grad_clip = np.clip(kern_grad, -self.max_grad,
-                                         self.max_grad)
+                kern_grad_clip = np.clip(kern_grad, -self.max_grad, self.max_grad)
                 kern_and_grad = (self.kernel.params, kern_grad_clip)
+                self.kern_grad = kern_grad
 
-            self.q_mu, self.m_mu, self.v_mu = self.optimizer.step(mu_vars, self.m_mu,
+            self.q_mu, m_mu, v_mu = self.optimizer.step(mu_vars, self.m_mu,
                                                         self.v_mu, i+1)
-            self.q_S, self.m_s, self.v_s = self.optimizer.step(S_vars, self.m_s,
+            self.q_S, m_s, v_s = self.optimizer.step(S_vars, self.m_s,
                                                      self.v_s, i+1)
-            if self.opt_kernel:
-                self.kernel.params, self.m_k, self.v_k =\
-                    self.optimizer.step(kern_and_grad,
-                                        self.m_k, self.v_k, i+1)
+            if self.opt_kernel == True:
+                self.kernel.params, m_k, v_k = self.optimizer.step(kern_and_grad,
+                                                                   self.m_k, self.v_k,
+                                                                   i+1)
                 self.Ks, self.K_invs = self.construct_Ks()
 
-            if i > its/2 and self.loss_check() == True:
+            if i > 100 and self.loss_check() == True:
                 print("converged at", i, "iterations")
                 return
 
+        print("warning: inference may not have converged")
+
         return
 
-    def eval_obj(self, S, q_mu, rs, kern_params=None):
+    def eval_obj(self, S, q_mu, rs, kern_params = None):
         """
         Evaluates variational objective
         Args:
-            Rs (): Variational covariances
-             (Cholesky decomposition of Kronecker decomp)
+            Rs (): Variational covariances (Cholesky decomposition of Kronecker decomp)
             q_mu (): Variational mean
             r (): Transformed random sample
         Returns: ELBO evaluation
         """
+        objs, kls, likes = ([] for i in range(3))
         kl = self.KLqp(S, q_mu, kern_params)
-        like = 0.
 
         for r in rs:
 
@@ -219,39 +157,12 @@ class MFSVI(SVIBase):
             else:
                 r_obs = r
 
-            like += np.sum(self.likelihood.log_like(r_obs, self.y))/len(rs)
+            like = np.sum(self.likelihood.log_like(r_obs, self.y))
+            obj = kl - like
+            objs.append(obj)
+            likes.append(like)
 
-        obj = kl - like
-
-        return obj, kl, like
-
-    def line_search(self, S_grads, mu_grads, obj_init, r, eps):
-        """
-        Performs line search to find optimal step size
-        Args:
-            Rs_grads (): Gradients of R (variational covariances)
-            mu_grads (): Gradients of mu (variational mean)
-            obj_init (): Initial objective value
-            r (): transformed random Gaussian sample
-            eps (): random Gaussian sample
-        Returns: Optimal step size
-        """
-        step = 1.
-
-        while step > 1e-9:
-
-            S_search = [S + step * S_grad
-                        for S_grad, S in S_grads]
-            mu_search = mu_grads[1] + step * mu_grads[0]
-            r_search = mu_search + np.multiply(S_search, eps)
-            obj_search, kl_search, like_search = self.eval_obj(S_search, mu_search,
-                                                               r_search)
-            if obj_init - obj_search > step:
-                return S_search, mu_search, obj_search, step
-
-            step = step * 0.5
-
-        return None
+        return np.mean(objs), kl, np.mean(likes)
 
     def KLqp(self, S, q_mu, kern_params):
         """
@@ -272,14 +183,14 @@ class MFSVI(SVIBase):
             det_K = self.log_det_K(Ks)
 
         k_inv_mu = kron_mvp(K_invs, self.mu - q_mu)
-        mu_penalty = np.sum(np.multiply(self.mu - q_mu, k_inv_mu))
+        mu_penalty = np.sum(np.multiply(self.mu -q_mu, k_inv_mu))
         det_S = np.sum(S)
         trace_term = np.sum(np.multiply(k_inv_diag, np.exp(S)))
 
         kl = 0.5 * (det_K - self.n - det_S +
                     trace_term + mu_penalty)
 
-        return kl
+        return max(0, kl)
 
     def grad_KL_S(self):
         """
@@ -288,14 +199,14 @@ class MFSVI(SVIBase):
         """
         euc_grad = 0.5 * (-1. + np.multiply(self.k_inv_diag, np.exp(self.q_S)))
 
-        return euc_grad
+        return 2*euc_grad/self.n
 
     def grad_KL_mu(self):
         """
         Gradient of KL divergence w.r.t variational mean
         Returns: returns gradient
         """
-        return -kron_mvp(self.K_invs, self.mu - self.q_mu)
+        return np.multiply(np.exp(self.q_S), -kron_mvp(self.K_invs, self.mu - self.q_mu))
 
     def grad_like(self, r, eps):
         """
@@ -311,26 +222,22 @@ class MFSVI(SVIBase):
             r_obs = r
 
         dr = self.likelihood_opt(r_obs, self.y)
-        dr = np.nan_to_num(dr)
+        dr[np.isnan(dr)] = 0.
 
         if self.obs_idx is not None:
             grad_mu = np.zeros(self.n)
             grad_mu[self.obs_idx] = dr
         else:
             grad_mu = dr
-        grad_S = np.multiply(grad_mu,
-                             np.multiply(eps,
-                                         np.multiply(0.5/np.sqrt(
-                                                np.exp(self.q_S)),
-                                                np.exp(self.q_S))))
+        grad_S = np.multiply(grad_mu, np.multiply(eps,
+                                      np.multiply(0.5/np.sqrt(np.exp(self.q_S)),
+                                                  np.exp(self.q_S))))
 
         return grad_S, grad_mu
 
     def grad_kern(self):
         """
-
         Returns: Gradient of KL w.r.t base kernel parameters
-
         """
 
         k_inv_mu = self.q_mu - self.mu
@@ -385,33 +292,29 @@ class MFSVI(SVIBase):
         GP predictions
         Returns: predictions
         """
-        Ks = [self.kernel.eval(self.kernel.params, X_dim)
-              for X_dim in self.X_dims]
-        K_invs = [np.linalg.inv(K + np.diag(np.ones(K.shape[0]))*self.kernel.params[2])
-                  for K in Ks]
+        Ks = [self.kernel.eval(self.kernel.params, X_dim) for X_dim in self.X_dims]
 
-        f_pred = kron_mvp(Ks, kron_mvp(K_invs, self.q_mu))
+        f_pred = kron_mvp(Ks, kron_mvp(self.K_invs, self.q_mu))
 
         return f_pred
 
-    def sample_post(self, n_samples=1):
+    def sample_post(self, n_samples = 1):
 
         return self.q_mu + \
-               np.multiply(np.expand_dims(
-                              np.sqrt(np.exp(self.q_S)), 1),
-                           np.random.normal(size=(self.n, n_samples))).flatten()
+               np.multiply(np.expand_dims(np.sqrt(np.exp(self.q_S)), 1),
+                           np.random.normal(size = (self.n, n_samples))).flatten()
 
     def loss_check(self):
 
-        if sum(x >= y for x, y in zip(self.elbos[-10:], self.elbos[-9:])) > 50 and \
-                self.elbos[-1] - self.elbos[-10] < 1e-3 * abs(self.elbos[-10]):
+        if sum(x >= y for x, y in zip(self.elbos[-100:], self.elbos[-99:])) > 50 and\
+            self.elbos[-1] - self.elbos[-100] < 1e-3*abs(self.elbos[-100]):
             return True
-
 
 class FullSVI(SVIBase):
 
 
-    def __init__(self, kernel, likelihood, X, y, mu = None, obs_idx=None):
+    def __init__(self, X, y, kernel, likelihood,
+                 mu = None, obs_idx=None):
         """
         Args:
             kernel (GPy.Kernel): kernel function

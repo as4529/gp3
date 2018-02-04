@@ -3,8 +3,11 @@ from gp3.utils.transforms import softplus, inv_softplus
 
 class RBF:
 
-    def __init__(self, lengthscale, variance, noise):
+    def __init__(self, lengthscale, variance, noise = 0.):
 
+        self.lengthscale = lengthscale
+        self.variance = variance
+        self.noise = noise
         self.params = self.pack_params(lengthscale, variance, noise)
 
     def eval(self, params, X, X2 = None):
@@ -27,8 +30,7 @@ class RBF:
         delta = np.expand_dims(X / ls, 1) -\
                 np.expand_dims(X2 / ls, 0)
 
-        return var * np.exp(-0.5 * np.sum(delta ** 2, axis=2)) +\
-               np.diag(np.ones(X.shape[0]))*noise
+        return var * np.exp(-0.5 * np.sum(delta ** 2, axis=2))
 
     def unpack_params(self, params):
 
