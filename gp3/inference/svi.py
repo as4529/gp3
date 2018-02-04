@@ -5,7 +5,7 @@ from scipy.linalg import toeplitz
 from gp3.utils.optimizers import Adam
 from tqdm import trange, tqdm_notebook
 from copy import deepcopy
-from base import InfBase
+from .base import InfBase
 
 """
 Stochastic Variational Inference for Gaussian Processes with
