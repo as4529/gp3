@@ -28,8 +28,8 @@ gp3 currently leverages [autograd](https://github.com/HIPS/autograd) to allow fo
 
 **In Progress:**
 
-* Kernel optimization with SVI
 * Accurate posterior variance estimates
+* Optimizing observation noise
 * Deep Kernel Learning
 
 **Next:**
