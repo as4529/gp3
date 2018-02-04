@@ -20,7 +20,7 @@ There are already a couple of nice libraries for GP inference in Python: [GPy](h
 
 gp3 exclusively implements Gaussian Process inference that exploits grid structure in covariates (X). This currently includes methods that leverage Kronecker and Toeplitz structure, and will soon include inducing point methods that can leverage grid structure without requiring it in the data itself. See the references at the bottom for background on these approaches.
 
-**Custom Likelihoods and Kernels in Native Python**
+**Custom Likelihoods and Kernels**
 
 gp3 currently leverages [autograd](https://github.com/HIPS/autograd) to allow for inference on custom likelihoods and kernels. I am working on transitioning to Tensorflow to allow for easier integration with existing deep learning models.  See ```examples/lif.py``` and ```examples/lif.ipynb``` for examples of a custom likelihood function.
 
