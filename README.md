@@ -8,9 +8,9 @@ gp3 currently focuses on grid structure-exploiting inference for Gaussian Proces
 
 For a basic example, see ```examples/basic.ipynb```. For an example of a custom likelihood see ```examples/lif.ipynb```. To view the notebooks with visualizations, use [nbviewer](https://nbviewer.jupyter.org/). Comprehensive documentation coming soon.
 
-Currently compatible with Python 2.7. Install with 
+Compatible with Python 3. Install with 
 
-```pip install gp3```
+```pip3 install gp3```
 
 ## Features
 
