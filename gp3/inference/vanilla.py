@@ -39,24 +39,6 @@ class Vanilla(InfBase):
                                       mu, obs_idx, noise=noise)
         self.opt = CG(self.cg_prod)
 
-    def construct_Ks(self, kernel=None):
-        """
-        Constructs kronecker-decomposed kernel matrix
-        Args:
-            kernel (): kernel (if not using kernel passed in constructor)
-        Returns: Rist of kernel evaluated at each dimension
-        """
-
-        if kernel is None:
-            kernel = self.kernel
-
-        self.Ks = [toeplitz(kernel.eval(kernel.params, X_dim[0], X_dim))
-                   for X_dim in self.X_dims]
-        self.K_eigs = [scipy.linalg.eigh(K + np.diag(np.ones(K.shape[0]))*1e-9)
-                       for K in self.Ks]
-
-        return self.Ks
-
     def sqrt_eig(self):
         """
         Calculates square root of kernel matrix using
