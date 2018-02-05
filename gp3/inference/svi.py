@@ -15,7 +15,9 @@ Stochastic Variational Inference for Gaussian Processes with
 
 
 class SVIBase(InfBase):
-
+    """
+    Base class for stochastic variational inference.
+    """
     def __init__(self, X, y, kernel, likelihood, mu = None, obs_idx = None,
                  opt_kernel = False, noise = 1e-2,
                  optimizer = Adam()):
@@ -46,14 +48,15 @@ class SVIBase(InfBase):
         return f_pred
 
 class MFSVI(SVIBase):
-
+    """
+    Stochastic variational inference with mean-field variational approximation
+    """
     def __init__(self, X, y, kernel, likelihood,
                  mu = None, obs_idx = None, opt_kernel = False):
         """
         Args:
-            kernel (GPy.Kernel): kernel function
-            likelihood (): likelihood function. Requires log_like(), grad(), and hess()
-            functions
+            kernel (): kernel function
+            likelihood (): likelihood function. Requires log_like() function
             X (): data
             y (): responses
             mu (): prior mean
@@ -142,7 +145,7 @@ class MFSVI(SVIBase):
         """
         Evaluates variational objective
         Args:
-            Rs (): Variational covariances (Cholesky decomposition of Kronecker decomp)
+            S (): Variational variances
             q_mu (): Variational mean
             r (): Transformed random sample
         Returns: ELBO evaluation
@@ -168,7 +171,7 @@ class MFSVI(SVIBase):
         """
         Calculates KL divergence between q and p
         Args:
-            Rs (): Variational covariance
+            S (): Variational variances
             q_mu (): Variational mean
         Returns: KL divergence between q and p
         """
@@ -194,7 +197,7 @@ class MFSVI(SVIBase):
 
     def grad_KL_S(self):
         """
-        Gradient of KL divergence w.r.t variational covariance
+        Natural gradient of KL divergence w.r.t variational variances
         Returns: returns gradient
         """
         euc_grad = 0.5 * (-1. + np.multiply(self.k_inv_diag, np.exp(self.q_S)))
@@ -203,7 +206,7 @@ class MFSVI(SVIBase):
 
     def grad_KL_mu(self):
         """
-        Gradient of KL divergence w.r.t variational mean
+        Natural gradient of KL divergence w.r.t variational mean
         Returns: returns gradient
         """
         return np.multiply(np.exp(self.q_S), -kron_mvp(self.K_invs, self.mu - self.q_mu))
@@ -214,7 +217,7 @@ class MFSVI(SVIBase):
         Args:
             r (): Transformed random sample
             eps (): Random sample
-        Returns: gradient w.r.t covariance, gradient w.r.t mean
+        Returns: gradient w.r.t variances, gradient w.r.t mean
         """
         if self.obs_idx is not None:
             r_obs = r[self.obs_idx]
@@ -299,33 +302,46 @@ class MFSVI(SVIBase):
         return f_pred
 
     def sample_post(self, n_samples = 1):
+        """
+        Sampels from the variational posterior
+        Args:
+            n_samples (int): Number of desired samples
+
+        Returns: Sample(s) from variational posterior
+
+        """
 
         return self.q_mu + \
                np.multiply(np.expand_dims(np.sqrt(np.exp(self.q_S)), 1),
                            np.random.normal(size = (self.n, n_samples))).flatten()
 
     def loss_check(self):
+        """
+        Checks conditions for loss decreasing
 
+        Returns: True if condition satisfied
+
+        """
         if sum(x >= y for x, y in zip(self.elbos[-100:], self.elbos[-99:])) > 50 and\
             self.elbos[-1] - self.elbos[-100] < 1e-3*abs(self.elbos[-100]):
             return True
 
 class FullSVI(SVIBase):
-
+    """
+    Variational inference with full variational covariance matrix
+    """
 
     def __init__(self, X, y, kernel, likelihood,
                  mu = None, obs_idx=None):
         """
         Args:
-            kernel (GPy.Kernel): kernel function
-            likelihood (): likelihood function. Requires log_like(), grad(), and hess()
-            functions
+            function
             X (): data
             y (): responses
+            kernel (): kernel function
+            likelihood (): likelihood function. Requires log_like()
             mu (): prior mean
-            noise (): noise variance
             obs_idx (): if dealing with partial grid, indices of grid that are observed
-            verbose (): print or not
         """
 
         super(FullSVI, self).__init__(kernel, likelihood, X, y, mu, obs_idx)

@@ -42,7 +42,8 @@ class RBF:
 
 class DeepRBF:
     """
-    Inspired by autograd's Bayesian neural net example
+    RBF kernel after transformation of inputs with a feed-forward NN.
+    Inspired by autograd's Bayesian neural net example.
     """
 
     def __init__(self, lengthscale, variance, noise,

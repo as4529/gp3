@@ -38,10 +38,10 @@ class Laplace(InfBase):
         """
 
         Args:
-            kernel (kernels.Kernel): kernel function to use for inference
-            likelihood (likelihoods.Likelihood): likelihood
             X (np.array): data
             y (np.array): output
+            kernel (): kernel function to use for inference
+            likelihood (likelihoods.Likelihood): likelihood
             tau (float): Newton line search hyperparam
             obs_idx (np.array): Indices of observed points (partial grid)
             verbose (bool): verbose or not
@@ -348,7 +348,7 @@ class Laplace(InfBase):
         """
 
         Args:
-            p (tfe.Variable): potential solution to linear system
+            p (): potential solution to linear system
 
         Returns: product Ap (left side of linear system)
 

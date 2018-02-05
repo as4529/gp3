@@ -7,7 +7,7 @@ from .base import InfBase
 
 
 """
-Class for Kronecker inference of GPs. Inspiration from GPML.
+Class for Kronecker inference of GPs with Gaussian likelihood. Inspiration from GPML.
 
 For references, see:
 
@@ -21,18 +21,16 @@ Most of the notation follows R and W chapter 2
 
 class Vanilla(InfBase):
 
-    def __init__(self, kernel, X, y, mu = None,
-                 obs_idx=None, verbose=False, noise = 1e-6):
+    def __init__(self, X, y, kernel, mu = None,
+                 obs_idx=None, noise = 1e-6):
         """
 
         Args:
-            kernel (kernels.Kernel): kernel function to use for inference
-            likelihood (likelihoods.Likelihood): likelihood
             X (np.array): data
             y (np.array): output
-            tau (float): Newton line search hyperparam
+            kernel (): kernel function to use for inference
             obs_idx (np.array): Indices of observed points (partial grid)
-            verbose (bool): verbose or not
+            noise (float): observation noise
         """
 
         super(Vanilla, self).__init__(X, y, kernel,
@@ -105,10 +103,21 @@ class Vanilla(InfBase):
 
 
     def predict_mean(self):
+        """
+        Predicts mean at X points
+
+        Returns: f_pred(X)
+
+        """
 
         return kron_mvp(self.Ks, self.alpha)
 
     def solve(self):
+       """
+       Uses linear conjugate gradients to solve for (K + noise)^{-1}y
+       Returns:
+
+       """
 
        self.alpha = self.opt.cg(self.Ks, self.y)
 
@@ -118,7 +127,7 @@ class Vanilla(InfBase):
         """
 
         Args:
-            p (tfe.Variable): potential solution to linear system
+            p (np.array): potential solution to linear system
 
         Returns: product Ap (left side of linear system)
 
