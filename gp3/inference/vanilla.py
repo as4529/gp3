@@ -1,11 +1,9 @@
-import sys
-from tqdm import trange
 import numpy as np
 from gp3.utils.optimizers import CG
 from gp3.utils.structure import kron_list, kron_mvp
 from scipy.linalg import toeplitz
-from scipy.optimize import minimize
 import scipy
+from .base import InfBase
 
 
 """
@@ -21,7 +19,7 @@ Most of the notation follows R and W chapter 2
 """
 
 
-class Vanilla:
+class Vanilla(InfBase):
 
     def __init__(self, kernel, X, y, mu = None,
                  obs_idx=None, verbose=False, noise = 1e-6):
@@ -37,26 +35,9 @@ class Vanilla:
             verbose (bool): verbose or not
         """
 
-        self.verbose = verbose
-        self.X = X
-        self.y = y
-        self.m = self.X.shape[0]
-        self.n = len(self.y)
-        self.d = self.X.shape[1]
-        self.X_dims = [np.expand_dims(np.unique(X[:,i]), 1) for i in range(self.d)]
-        if mu is None:
-            self.mu = np.zeros(self.n)
-        else:
-            self.mu = mu
-        self.obs_idx = obs_idx
-        self.root_eigdecomp = None
-
-        self.kernel = kernel
-        self.noise = noise
-        self.construct_Ks()
+        super(Vanilla, self).__init__(X, y, kernel,
+                                      mu, obs_idx, noise=noise)
         self.opt = CG(self.cg_prod)
-
-        self.f = self.mu
 
     def construct_Ks(self, kernel=None):
         """
