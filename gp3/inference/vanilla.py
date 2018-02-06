@@ -32,7 +32,7 @@ class Vanilla(InfBase):
         """
 
         super(Vanilla, self).__init__(X, y, kernel,
-                                      mu, obs_idx, noise=noise)
+                                      mu, obs_idx = obs_idx, noise=noise)
         self.opt = CG(self.cg_prod)
         self.root_eigdecomp = self.sqrt_eig()
         if obs_idx is not None:
@@ -92,31 +92,45 @@ class Vanilla(InfBase):
 
     def variance_slow(self, n_s):
 
-        K = kron_list(self.Ks)
-        A = kron_list(self.Ks) + np.diag(np.ones(self.n) * self.noise)
+        K_uu = kron_list(self.Ks)
+        K_xx = K_uu
+        K_ux = K_uu
+
+        if self.obs_idx is not None:
+            K_xx = K_uu[self.obs_idx, :][:, self.obs_idx]
+            K_ux = K_uu[:, self.obs_idx]
+
+        A = K_xx + np.diag(np.ones(self.m) * self.noise)
         A_inv = np.linalg.inv(A)
         A_inv_chol = np.linalg.cholesky(A_inv)
-        var = np.zeros([self.m])
+        var = np.zeros([self.n])
         vars = []
 
         for i in range(n_s):
-            eps = np.random.normal(size = self.n)
+            eps = np.random.normal(size = self.m)
             r = np.dot(A_inv_chol, eps)
-            var += np.square(np.dot(K, r))
+            var += np.square(np.dot(K_ux, r))
             if i % 10 == 0:
-                var_t = np.clip(np.diag(K) - var/i, 0, 1e12)
+                var_t = np.clip(np.diag(K_uu) - var/i, 0, 1e12)
                 vars.append(var_t)
 
-        return np.clip(np.diag(K) - var/n_s, 0, 1e12).flatten(), vars
+        return np.clip(np.diag(K_uu) - var/n_s, 0, 1e12).flatten(), vars
 
     def variance_exact(self):
 
-        K = kron_list(self.Ks)
-        A = kron_list(self.Ks) + np.diag(np.ones(self.n) * self.noise)
+        K_uu = kron_list(self.Ks)
+        K_xx = K_uu
+        K_ux = K_uu
+
+        if self.obs_idx is not None:
+            K_xx = K_uu[self.obs_idx, :][:, self.obs_idx]
+            K_ux = K_uu[:, self.obs_idx]
+
+        A = K_xx + np.diag(np.ones(self.m) * self.noise)
         A_inv = np.linalg.inv(A)
 
-        return np.squeeze(np.diag(K) -\
-                          np.diag(np.dot(K, A_inv).dot(K)))
+        return np.squeeze(np.diag(K_uu) -\
+                          np.diag(np.dot(K_ux, A_inv).dot(K_ux.T)))
 
     def predict_mean(self):
         """
