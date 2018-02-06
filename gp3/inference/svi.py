@@ -344,14 +344,15 @@ class FullSVI(SVIBase):
             obs_idx (): if dealing with partial grid, indices of grid that are observed
         """
 
-        super(FullSVI, self).__init__(kernel, likelihood, X, y, mu, obs_idx)
+        super(FullSVI, self).__init__(X, y, kernel, likelihood, mu, obs_idx)
 
         self.Rs = self.initialize_Rs_prior()
         self.trace_term, self.traces = self.calc_trace_term()
-        self.v_mu, self.v_k, self.m_mu, self.m_k = (None for _ in range(6))
-        self.v_s, self.m_s = [], []
+        self.v_mu, self.v_k, self.m_mu, self.m_k = (None for _ in range(4))
+        self.v_Rs = [None for _ in range(self.d)]
+        self.m_Rs = [None for _ in range(self.d)]
 
-    def run(self, its):
+    def run(self, its, notebook_mode = True):
         """
         Runs stochastic variational inference
         Args:
@@ -359,7 +360,10 @@ class FullSVI(SVIBase):
         Returns: Nothing, but updates instance variables
         """
 
-        t = trange(its, leave=True)
+        if notebook_mode == True:
+            t = tqdm_notebook(range(its), leave=False)
+        else:
+            t = trange(its, leave = False)
 
         for i in t:
             self.trace_term, self.traces = self.calc_trace_term()
@@ -375,25 +379,24 @@ class FullSVI(SVIBase):
                       for i in range(len(KL_grad_R))]
             grad_mu= np.clip(-KL_grad_mu + like_grad_mu, -self.max_grad,
                              self.max_grad)
-            R_and_grads = zip(grad_R, self.Rs)
-            mu_and_grad = (grad_mu, self.q_mu)
+            R_and_grads = list(zip(self.Rs, grad_R))
+            mu_and_grad = (self.q_mu, grad_mu)
 
             obj, kl, like = self.eval_obj(self.Rs, self.q_mu, r)
             self.elbos.append(-obj)
 
-            ls_res = self.line_search(R_and_grads, mu_and_grad, obj, r, eps)
+            self.q_mu, self.m_mu, self.v_mu =\
+                self.optimizer.step(mu_and_grad, self.m_mu,
+                                                        self.v_mu, i + 1)
 
-            step = 0.
-            if ls_res is not None:
-                step = ls_res[-1]
+            for d in range(self.d):
+                self.Rs[d], self.m_Rs[d], self.v_Rs[d] =\
+                    self.optimizer.step(R_and_grads[d], self.m_Rs[d],
+                                        self.v_Rs[d], i + 1)
 
             t.set_description("ELBO: " + '{0:.2f}'.format(-obj) +
                               " | KL: " + '{0:.2f}'.format(kl) +
-                              " | logL: " + '{0:.2f}'.format(like) +
-                              " | step: " + str(step))
-            if ls_res is not None:
-                self.Rs = ls_res[0]
-                self.q_mu = ls_res[1]
+                              " | logL: " + '{0:.2f}'.format(like))
 
         return
 
