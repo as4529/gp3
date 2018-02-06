@@ -387,7 +387,7 @@ class FullSVI(SVIBase):
 
             self.q_mu, self.m_mu, self.v_mu =\
                 self.optimizer.step(mu_and_grad, self.m_mu,
-                                                        self.v_mu, i + 1)
+                                    self.v_mu, i + 1)
 
             for d in range(self.d):
                 self.Rs[d], self.m_Rs[d], self.v_Rs[d] =\

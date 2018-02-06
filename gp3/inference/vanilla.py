@@ -1,6 +1,6 @@
 import numpy as np
 from gp3.utils.optimizers import CG
-from gp3.utils.structure import kron_list, kron_mvp
+from gp3.utils.structure import kron_list, kron_mvp, kron_list_diag
 from .base import InfBase
 
 
@@ -34,6 +34,11 @@ class Vanilla(InfBase):
         super(Vanilla, self).__init__(X, y, kernel,
                                       mu, obs_idx, noise=noise)
         self.opt = CG(self.cg_prod)
+        self.root_eigdecomp = self.sqrt_eig()
+        if obs_idx is not None:
+            self.m = len(obs_idx)
+        else:
+            self.m = self.n
 
     def sqrt_eig(self):
         """
@@ -72,33 +77,46 @@ class Vanilla(InfBase):
             self.sqrt_eig()
 
         var = np.zeros([self.m])
+        diag = kron_list_diag(self.Ks)
 
         for i in range(n_s):
-            g_m = np.random.normal(size = self.m)
+            g_m = np.random.normal(size = self.n)
             g_n = np.random.normal(size = self.n)
 
             right_side = np.dot(self.root_eigdecomp, g_m) +\
-                         np.sqrt(self.kernel.lengthscale**self.d + self.noise)*g_n
+                         np.sqrt(self.noise)*g_n
             r = self.opt.cg(self.Ks, right_side)
             var += np.square(kron_mvp(self.Ks, r))
 
-        return np.clip(self.kernel.eval(self.kernel.params,
-            np.array([[0.]]), np.array([[0.]]))**self.d - var/n_s, 0, 1e12).flatten()
+        return np.clip(diag - var/n_s, 0, 1e12).flatten()
 
     def variance_slow(self, n_s):
 
         K = kron_list(self.Ks)
-        A = kron_list(self.Ks) + np.diag(np.ones(self.n)*self.noise)
+        A = kron_list(self.Ks) + np.diag(np.ones(self.n) * self.noise)
         A_inv = np.linalg.inv(A)
+        A_inv_chol = np.linalg.cholesky(A_inv)
         var = np.zeros([self.m])
+        vars = []
 
         for i in range(n_s):
-            r = np.random.multivariate_normal(mean = np.zeros(self.n), cov = A_inv)
+            eps = np.random.normal(size = self.n)
+            r = np.dot(A_inv_chol, eps)
             var += np.square(np.dot(K, r))
+            if i % 10 == 0:
+                var_t = np.clip(np.diag(K) - var/i, 0, 1e12)
+                vars.append(var_t)
 
-        return np.clip(self.kernel.eval(self.kernel.params,
-            np.array([[0.]]), np.array([[0.]])) - var/n_s, 0, 1e12).flatten()
+        return np.clip(np.diag(K) - var/n_s, 0, 1e12).flatten(), vars
 
+    def variance_exact(self):
+
+        K = kron_list(self.Ks)
+        A = kron_list(self.Ks) + np.diag(np.ones(self.n) * self.noise)
+        A_inv = np.linalg.inv(A)
+
+        return np.squeeze(np.diag(K) -\
+                          np.diag(np.dot(K, A_inv).dot(K)))
 
     def predict_mean(self):
         """
