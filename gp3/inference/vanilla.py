@@ -1,8 +1,6 @@
 import numpy as np
 from gp3.utils.optimizers import CG
 from gp3.utils.structure import kron_list, kron_mvp
-from scipy.linalg import toeplitz
-import scipy
 from .base import InfBase
 
 
