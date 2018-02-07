@@ -17,7 +17,7 @@ class InfBase(object):
             self.n = self.m
         self.X_dims = [np.expand_dims(np.unique(X[:, i]), 1) for i in range(self.d)]
         if mu is None:
-            self.mu = np.zeros(self.n)
+            self.mu = np.zeros(self.m)
         else:
             self.mu = mu
         self.max_grad = max_grad
@@ -50,7 +50,7 @@ class InfBase(object):
         log_det = 0.
 
         for K in Ks:
-            rank_d = self.n / K.shape[0]
+            rank_d = self.m / K.shape[0]
             det = np.linalg.slogdet(K)[1]
             log_det += rank_d * det
 

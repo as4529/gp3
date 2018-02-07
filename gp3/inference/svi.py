@@ -68,7 +68,7 @@ class MFSVI(SVIBase):
         super(MFSVI, self).__init__(X, y, kernel, likelihood,
                                     mu, obs_idx, opt_kernel)
 
-        self.q_S = np.ones(self.n) * np.log(self.Ks[0][0, 0] ** self.d)
+        self.q_S = np.ones(self.m) * np.log(self.Ks[0][0, 0] ** self.d)
         self.v_mu, self.v_s, self.v_k, self.m_mu, \
         self.m_s, self.m_k = (None for _ in range(6))
 
@@ -92,7 +92,7 @@ class MFSVI(SVIBase):
             grads_mu, grads_S, es, rs= ([] for i in range(4))
 
             for j in range(n_samples):
-                eps = np.random.normal(size=self.n)
+                eps = np.random.normal(size=self.m)
                 r = self.q_mu + np.multiply(np.sqrt(np.exp(self.q_S)), eps)
                 like_grad_S, like_grad_mu = self.grad_like(r, eps)
 
@@ -190,7 +190,7 @@ class MFSVI(SVIBase):
         det_S = np.sum(S)
         trace_term = np.sum(np.multiply(k_inv_diag, np.exp(S)))
 
-        kl = 0.5 * (det_K - self.n - det_S +
+        kl = 0.5 * (det_K - self.m - det_S +
                     trace_term + mu_penalty)
 
         return max(0, kl)
@@ -202,7 +202,7 @@ class MFSVI(SVIBase):
         """
         euc_grad = 0.5 * (-1. + np.multiply(self.k_inv_diag, np.exp(self.q_S)))
 
-        return 2*euc_grad/self.n
+        return 2*euc_grad/self.m
 
     def grad_KL_mu(self):
         """
@@ -228,7 +228,7 @@ class MFSVI(SVIBase):
         dr[np.isnan(dr)] = 0.
 
         if self.obs_idx is not None:
-            grad_mu = np.zeros(self.n)
+            grad_mu = np.zeros(self.m)
             grad_mu[self.obs_idx] = dr
         else:
             grad_mu = dr
@@ -313,7 +313,7 @@ class MFSVI(SVIBase):
 
         return self.q_mu + \
                np.multiply(np.expand_dims(np.sqrt(np.exp(self.q_S)), 1),
-                           np.random.normal(size = (self.n, n_samples))).flatten()
+                           np.random.normal(size = (self.m, n_samples))).flatten()
 
     def loss_check(self):
         """
@@ -370,7 +370,7 @@ class FullSVI(SVIBase):
             KL_grad_R = self.grad_KL_R()
             KL_grad_mu = self.grad_KL_mu()
 
-            eps = np.random.normal(size = self.n)
+            eps = np.random.normal(size = self.m)
             r = self.q_mu + kron_mvp(self.Rs, eps)
             like_grad_R, like_grad_mu = self.grad_like(r, eps)
 
@@ -432,7 +432,7 @@ class FullSVI(SVIBase):
         mu_penalty = np.sum(np.multiply(self.mu -q_mu, k_inv_mu))
         det_S = self.log_det_S(Rs)
         trace_term = self.calc_trace_term(Rs)[0]
-        kl = 0.5 * (self.det_K - self.n - det_S +
+        kl = 0.5 * (self.det_K - self.m - det_S +
                       trace_term + mu_penalty)
 
         if kl < 0:
@@ -445,7 +445,7 @@ class FullSVI(SVIBase):
         Gradient of KL divergence w.r.t variational covariance
         Returns: returns gradient
         """
-        return [np.diag(-2*self.n/self.Rs[d].shape[0]/
+        return [np.diag(-2*self.m/self.Rs[d].shape[0]/
                          np.diag(self.Rs[d])) +\
                          np.prod(self.traces)/self.traces[d] *
                          np.dot(self.K_invs[d], self.Rs[d])
@@ -493,7 +493,7 @@ class FullSVI(SVIBase):
             grads_R.append(grad_R)
 
         if self.obs_idx is not None:
-            grad_mu = np.zeros(self.n)
+            grad_mu = np.zeros(self.m)
             grad_mu[self.obs_idx] = dr
         else:
             grad_mu = dr
@@ -554,7 +554,7 @@ class FullSVI(SVIBase):
         if Rs is None:
             Rs = self.Rs
 
-        return 2*np.sum([self.n/R.shape[0]*
+        return 2*np.sum([self.m/R.shape[0]*
                                  np.sum(np.log(np.diag(R)))
                                  for R in Rs])
 
@@ -593,7 +593,7 @@ class FullSVI(SVIBase):
         Returns: sample
         """
 
-        eps = np.random.normal(size = self.n)
+        eps = np.random.normal(size = self.m)
         r = self.q_mu + kron_mvp(self.Rs, eps)
 
         return r

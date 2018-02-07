@@ -3,8 +3,7 @@ from tqdm import trange
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad
 from gp3.utils.optimizers import CG
-from gp3.utils.structure import kron_list, kron_mvp
-from scipy.linalg import toeplitz
+from gp3.utils.structure import kron_list, kron_mvp, kron_list_diag
 from scipy.optimize import minimize
 from .base import InfBase
 
@@ -304,34 +303,30 @@ class Laplace(InfBase):
         """
 
         if self.root_eigdecomp is None:
-            self.root_eigdecomp = self.sqrt_eig()
+            self.sqrt_eig()
+        if self.obs_idx is not None:
+            root_K = self.root_eigdecomp[self.obs_idx, :]
+        else:
+            root_K = self.root_eigdecomp
 
-        WK = np.dot(np.diag(np.sqrt(self.W)), self.root_eigdecomp)
-        W_kd = None
-
-        if self.precondition is not None:
-            W_kd = np.multiply(np.sqrt(self.W), np.sqrt(self.k_diag))
-
-        var = np.zeros([self.n])
+        var = np.zeros([self.m])
+        diag = kron_list_diag(self.Ks)
 
         for i in range(n_s):
-            g_m = np.random.normal(size = self.n)
+            g_m = np.random.normal(size = self.m)
             g_n = np.random.normal(size = self.n)
-            if self.precondition is None:
-                right_side = np.dot(WK, g_m) + g_n
-            else:
-                cov_term = np.dot(WK, g_m)
-                noise_term = np.multiply(W_kd, g_n)
-                right_side = np.multiply(self.precondition,
-                                         cov_term + noise_term)
-            right_side = np.nan_to_num(right_side)
-            r = self.opt.cg(self.Ks, right_side)
-            var += np.square(np.squeeze(kron_mvp(self.Ks,
-                                        np.multiply(np.sqrt(self.W), r))))
+            right_side = np.dot(root_K, g_m) +\
+                         np.sqrt(self.noise)*g_n
 
-        return np.clip(np.squeeze(self.kernel.eval(self.kernel.params,
-            np.array([[0.]]), np.array([[0.]])))**self.d -
-                          var/n_s*1.0, 0., 1e3)
+            r = self.opt.cg(self.Ks, right_side)
+            if self.obs_idx is not None:
+                Wr = np.zeros(self.m)
+                Wr[self.obs_idx] = r
+            else:
+                Wr = r
+            var += np.square(kron_mvp(self.Ks, Wr))
+
+        return np.clip(diag - var/n_s, 0, 1e12).flatten()
 
     def predict_mean(self, x_new):
 
@@ -378,8 +373,8 @@ class Laplace(InfBase):
         obs_grad = self.grad_func(obs_f, self.y)
         obs_hess = self.hess_func(obs_f, self.y)
 
-        agg_grad = np.zeros(self.n, np.float64)
-        agg_hess = np.zeros(self.n, np.float64)
+        agg_grad = np.zeros(self.m, np.float64)
+        agg_hess = np.zeros(self.m, np.float64)
 
         for i, j in enumerate(self.obs_idx):
             agg_grad[j] += obs_grad[i]
