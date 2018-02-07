@@ -35,10 +35,6 @@ class Vanilla(InfBase):
                                       mu, obs_idx = obs_idx, noise=noise)
         self.opt = CG(self.cg_prod)
         self.root_eigdecomp = self.sqrt_eig()
-        if obs_idx is not None:
-            self.m = len(obs_idx)
-        else:
-            self.m = self.n
 
     def sqrt_eig(self):
         """
@@ -75,18 +71,28 @@ class Vanilla(InfBase):
 
         if self.root_eigdecomp is None:
             self.sqrt_eig()
+        if self.obs_idx is not None:
+            root_K = self.root_eigdecomp[self.obs_idx, :]
+        else:
+            root_K = self.root_eigdecomp
 
         var = np.zeros([self.m])
         diag = kron_list_diag(self.Ks)
 
-        for i in range(n_s):
-            g_m = np.random.normal(size = self.n)
-            g_n = np.random.normal(size = self.n)
 
-            right_side = np.dot(self.root_eigdecomp, g_m) +\
+        for i in range(n_s):
+            g_m = np.random.normal(size = self.m)
+            g_n = np.random.normal(size = self.n)
+            right_side = np.dot(root_K, g_m) +\
                          np.sqrt(self.noise)*g_n
+
             r = self.opt.cg(self.Ks, right_side)
-            var += np.square(kron_mvp(self.Ks, r))
+            if self.obs_idx is not None:
+                Wr = np.zeros(self.m)
+                Wr[self.obs_idx] = r
+            else:
+                Wr = r
+            var += np.square(kron_mvp(self.Ks, Wr))
 
         return np.clip(diag - var/n_s, 0, 1e12).flatten()
 
@@ -100,21 +106,17 @@ class Vanilla(InfBase):
             K_xx = K_uu[self.obs_idx, :][:, self.obs_idx]
             K_ux = K_uu[:, self.obs_idx]
 
-        A = K_xx + np.diag(np.ones(self.m) * self.noise)
+        A = K_xx + np.diag(np.ones(self.n) * self.noise)
         A_inv = np.linalg.inv(A)
         A_inv_chol = np.linalg.cholesky(A_inv)
-        var = np.zeros([self.n])
-        vars = []
+        var = np.zeros([self.m])
 
         for i in range(n_s):
-            eps = np.random.normal(size = self.m)
+            eps = np.random.normal(size = self.n)
             r = np.dot(A_inv_chol, eps)
             var += np.square(np.dot(K_ux, r))
-            if i % 10 == 0:
-                var_t = np.clip(np.diag(K_uu) - var/i, 0, 1e12)
-                vars.append(var_t)
 
-        return np.clip(np.diag(K_uu) - var/n_s, 0, 1e12).flatten(), vars
+        return np.clip(np.diag(K_uu) - var/n_s, 0, 1e12).flatten()
 
     def variance_exact(self):
 
@@ -126,7 +128,7 @@ class Vanilla(InfBase):
             K_xx = K_uu[self.obs_idx, :][:, self.obs_idx]
             K_ux = K_uu[:, self.obs_idx]
 
-        A = K_xx + np.diag(np.ones(self.m) * self.noise)
+        A = K_xx + np.diag(np.ones(self.n) * self.noise)
         A_inv = np.linalg.inv(A)
 
         return np.squeeze(np.diag(K_uu) -\

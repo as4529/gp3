@@ -9,13 +9,17 @@ class InfBase(object):
 
         self.X = X
         self.y = y
-        self.n, self.d = self.X.shape
+        self.m, self.d = self.X.shape
+        self.obs_idx = obs_idx
+        if self.obs_idx is not None:
+            self.n = len(self.obs_idx)
+        else:
+            self.n = self.m
         self.X_dims = [np.expand_dims(np.unique(X[:, i]), 1) for i in range(self.d)]
         if mu is None:
             self.mu = np.zeros(self.n)
         else:
             self.mu = mu
-        self.obs_idx = obs_idx
         self.max_grad = max_grad
         self.init_Ks(kernel, noise, opt_kernel)
 

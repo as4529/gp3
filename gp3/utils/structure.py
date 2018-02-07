@@ -68,3 +68,4 @@ def kron_list_diag(Ks):
         diag = np.hstack([ii * diag for ii in np.diag(Ks[i])])
 
     return diag
+
