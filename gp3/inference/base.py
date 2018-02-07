@@ -68,7 +68,7 @@ class InfBase(object):
             kernel = self.kernel
 
         Ks = [kernel.eval(kernel.params, X_dim) +
-              np.diag(np.ones(X_dim.shape[0])) * self.noise for X_dim in self.X_dims]
+              np.diag(np.ones(X_dim.shape[0])) * 1e-12 for X_dim in self.X_dims]
         K_invs = [np.linalg.inv(K) for K in Ks]
 
         return Ks, K_invs

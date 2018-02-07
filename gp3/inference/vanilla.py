@@ -32,9 +32,10 @@ class Vanilla(InfBase):
         """
 
         super(Vanilla, self).__init__(X, y, kernel,
-                                      mu, obs_idx = obs_idx, noise=noise)
+                                      mu=mu, obs_idx = obs_idx, noise=noise)
         self.opt = CG(self.cg_prod)
         self.root_eigdecomp = self.sqrt_eig()
+        self.alpha = None
 
     def sqrt_eig(self):
         """
@@ -49,9 +50,9 @@ class Vanilla(InfBase):
         res = []
 
         for e, v in self.K_eigs:
-            e_root_diag = np.sqrt(e)
+            e_root_diag = np.real(np.sqrt(e))
             e_root = np.diag(e_root_diag)
-            res.append(np.dot(np.dot(v, e_root), np.transpose(v)))
+            res.append(np.real(np.dot(np.dot(v, e_root), np.transpose(v))))
 
         res = kron_list(res)
         self.root_eigdecomp = res
@@ -141,8 +142,16 @@ class Vanilla(InfBase):
         Returns: f_pred(X)
 
         """
+        if self.alpha is None:
+            self.solve()
 
-        return kron_mvp(self.Ks, self.alpha)
+        if self.obs_idx is not None:
+            Wt_alpha = np.zeros(self.m)
+            Wt_alpha[self.obs_idx] = self.alpha
+        else:
+            Wt_alpha = self.alpha
+
+        return kron_mvp(self.Ks, Wt_alpha)
 
     def solve(self):
        """
