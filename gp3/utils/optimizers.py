@@ -7,17 +7,22 @@ class CG:
         self.cg_prod = cg_prod
         self.tol = tol
 
-    def cg(self, A, b, x = None):
+    def cg(self, A, b, cg_prod = None, x = None, its = None):
 
         n = len(b)
-        if not x:
-            x = np.ones(n)
 
-        r = self.cg_prod(A, x) - b
+        if its is None:
+            its = 2 * n
+        if x is None:
+            x = np.ones(n)
+        if cg_prod is None:
+            cg_prod = self.cg_prod
+
+        r = cg_prod(A, x) - b
         p = - r
         r_k_norm = np.dot(r, r)
-        for i in range(2 * n):
-            Ap = self.cg_prod(A, p)
+        for i in range(its):
+            Ap = cg_prod(A, p)
             alpha = r_k_norm / np.dot(p, Ap)
             x += alpha * p
             r += alpha * Ap
@@ -27,7 +32,6 @@ class CG:
             if r_kplus1_norm < self.tol:
                 break
             p = beta * p - r
-
         return x
 
 class Adam:

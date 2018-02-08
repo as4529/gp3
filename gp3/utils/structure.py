@@ -1,5 +1,6 @@
 import numpy as np
 from functools import reduce
+from scipy.linalg import circulant
 
 def kron(A, B):
     """
@@ -69,3 +70,11 @@ def kron_list_diag(Ks):
 
     return diag
 
+def toep_embed(T):
+
+    c_col = np.hstack([T[0,:], T[0,::-1][1:-1]])
+
+    return circulant(c_col)
+
+def kron_toep(Ks):
+    return

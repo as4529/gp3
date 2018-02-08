@@ -56,7 +56,7 @@ class InfBase(object):
 
         return log_det
 
-    def construct_Ks(self, kernel=None):
+    def construct_Ks(self, kernel=None, jitter = 1e-6):
         """
         Constructs kronecker-decomposed kernel matrix
         Args:
@@ -67,8 +67,9 @@ class InfBase(object):
         if kernel is None:
             kernel = self.kernel
 
-        Ks = [kernel.eval(kernel.params, X_dim) +
-              np.diag(np.ones(X_dim.shape[0])) * 1e-12 for X_dim in self.X_dims]
+        Ks = [kernel.eval(kernel.params, X_dim) +\
+              np.diag(np.ones(X_dim.shape[0]))*jitter
+              for X_dim in self.X_dims]
         K_invs = [np.linalg.inv(K) for K in Ks]
 
         return Ks, K_invs
