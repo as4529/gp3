@@ -22,7 +22,7 @@ gp3 exclusively implements Gaussian Process inference that exploits grid structu
 
 **Custom Likelihoods and Kernels**
 
-gp3 currently leverages [autograd](https://github.com/HIPS/autograd) to allow for inference on custom likelihoods and kernels. I am working on transitioning to Tensorflow to allow for easier integration with existing deep learning models.  See ```examples/lif.py``` and ```examples/lif.ipynb``` for examples of a custom likelihood function.
+gp3 currently leverages [autograd](https://github.com/HIPS/autograd) to allow for inference on custom likelihoods and kernels. I am working on transitioning to PyTorch to allow for easier integration with existing deep learning models.  See ```examples/lif.py``` and ```examples/lif.ipynb``` for examples of a custom likelihood function.
 
 ## Roadmap
 
