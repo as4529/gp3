@@ -56,7 +56,7 @@ def kron_mvp(Ks, v):
 
     for k in reversed(Ks):
         mvp = np.reshape(mvp, [k.shape[0], -1])
-        mvp = np.dot(k, mvp).T
+        mvp = np.dot(k, mvp) .T
 
     return mvp.flatten()
 

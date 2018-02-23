@@ -119,7 +119,7 @@ def min_grid(X, y):
 
     for g in grid_idx:
         i = 0
-        for d in xrange(X.shape[1]):
+        for d in range(X.shape[1]):
             i+= g[d]*grid_size**(X.shape[1] - d - 1)
         indices.append(i)
 

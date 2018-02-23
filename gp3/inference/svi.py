@@ -1,7 +1,6 @@
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad, jacobian
 from gp3.utils.structure import kron_mvp, kron_list_diag
-from scipy.linalg import toeplitz
 from gp3.utils.optimizers import Adam
 from tqdm import trange, tqdm_notebook
 from copy import deepcopy
@@ -202,7 +201,7 @@ class MFSVI(SVIBase):
         """
         euc_grad = 0.5 * (-1. + np.multiply(self.k_inv_diag, np.exp(self.q_S)))
 
-        return 2*euc_grad/self.m
+        return 2 * euc_grad / self.m
 
     def grad_KL_mu(self):
         """
@@ -237,58 +236,6 @@ class MFSVI(SVIBase):
                                                   np.exp(self.q_S))))
 
         return grad_S, grad_mu
-
-    def grad_kern(self):
-        """
-        Returns: Gradient of KL w.r.t base kernel parameters
-        """
-
-        k_inv_mu = self.q_mu - self.mu
-        grads = []
-        term1 = np.ones(len(self.kernel.params))
-        term2 = np.expand_dims(np.ones(len(self.kernel.params)), 1)
-
-        for i, X in enumerate(reversed(self.X_dims)):
-
-            grad = self.kernel_opt(self.kernel.params, X[0], X)
-            toep_grad = np.stack([toeplitz(grad[:, :, k])
-                                  for k in range(grad.shape[2])],
-                                 axis=-1)
-            grads.append(toep_grad)
-
-            term1 = np.multiply(term1,
-                                np.einsum('ij, ijk -> k',
-                                          self.K_invs[i], toep_grad))
-
-            diag = np.einsum('ij,jik->jk', self.K_invs[i],
-                             np.einsum('ijk,j...', toep_grad,
-                                       self.K_invs[i]))
-            term2 = np.stack([np.hstack([ii * term2[d, :]
-                              for ii in diag[:, d]])
-                              for d in range(diag.shape[1])])
-
-            k_inv_mu = np.reshape(k_inv_mu, [X.shape[0], -1])
-            k_inv_mu = np.dot(self.K_invs[i], k_inv_mu).T
-
-        term2 = np.sum(np.multiply(term2.T,
-                                   np.expand_dims(np.exp(self.q_S), 1)),
-                       0)
-        k_inv_mu = np.reshape(k_inv_mu, [-1])
-        term3 = np.tile(k_inv_mu, (len(self.kernel.params), 1)).T
-
-        for grad in grads:
-            term3 = np.reshape(term3, [grad.shape[0], -1,
-                                       grad.shape[2]])
-            term3 = np.stack([np.dot(grad[:, :, d], term3[:, :, d]).T
-                              for d in range(len(self.kernel.params))],
-                             axis=-1)
-
-        term3 = np.reshape(term3,
-                           [-1, len(self.kernel.params)])
-        term3 = np.sum(np.multiply(np.expand_dims(k_inv_mu, 1),
-                                   term3), 0)
-
-        return -0.5*(term1 - term2 - term3)
 
     def predict(self):
         """

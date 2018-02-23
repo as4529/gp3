@@ -1,6 +1,6 @@
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad, jacobian
-from gp3.utils.structure import kron_mvp, kron_list_diag
+from gp3.utils.structure import kron_list, kron_list_diag
 
 class InfBase(object):
 
@@ -30,7 +30,7 @@ class InfBase(object):
     def init_Ks(self, kernel, noise, opt_kernel):
 
         self.kernel = kernel
-        self.noise = noise
+        self.noise = np.array([noise])
         self.Ks, self.K_invs = self.construct_Ks()
         self.k_inv_diag = kron_list_diag(self.K_invs)
         self.det_K = self.log_det_K()
@@ -67,9 +67,16 @@ class InfBase(object):
         if kernel is None:
             kernel = self.kernel
 
-        Ks = [kernel.eval(kernel.params, X_dim) +\
-              np.diag(np.ones(X_dim.shape[0]))*jitter
+        Ks = [kernel.eval(kernel.params, X_dim)
               for X_dim in self.X_dims]
         K_invs = [np.linalg.inv(K) for K in Ks]
 
         return Ks, K_invs
+
+    def full_K(self):
+
+        return kron_list(self.Ks)
+
+    def full_A(self):
+
+        return self.full_K() + np.diag(np.ones(self.m) * self.noise)
