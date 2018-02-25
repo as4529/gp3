@@ -20,15 +20,10 @@ class RBF:
         Returns:s
 
         """
-
         ls, var = self.unpack_params(params)
-
-        if X2 is None:
-            X2 = X
-
+        X2 = X if X2 is None else X2
         delta = np.expand_dims(X / ls, 1) -\
                 np.expand_dims(X2 / ls, 0)
-
         return var * np.exp(-0.5 * np.sum(delta ** 2, axis=2))
 
     def unpack_params(self, params):
@@ -71,15 +66,9 @@ class DeepRBF:
 
         ls, var, noise, weights = self.unpack_params(params)
         X_nn = self.nn_predict(weights, X)
-
-        if X2 is not None:
-            X2_nn = self.nn_predict(weights, X2)
-        else:
-            X2_nn = X_nn
-
+        X2_nn = self.nn_predict(weights, X2) if X2 is not None else X_nn
         delta = np.expand_dims(X_nn / ls, 1) -\
                 np.expand_dims(X2_nn / ls, 0)
-
         return var * np.exp(-0.5 * np.sum(delta ** 2, axis=2)) +\
                np.diag(np.ones(X.shape[0]))*noise
 
@@ -101,7 +90,6 @@ class DeepRBF:
         for W, b in self.unpack_layers(weights):
             outputs = np.dot(inputs, W) + b
             inputs = softplus(outputs)
-
         return outputs
 
     def pack_params(self, lengthscale, variance, noise, weights):
@@ -134,19 +122,11 @@ class Matern52:
         """
 
         ls, var = self.unpack_params(params)
-
-        if X2 is None:
-            X2 = X
-
+        X2 = X if X2 is None else X2
         delta = np.expand_dims(X / ls, 1) - \
                 np.expand_dims(X2 / ls, 0)
-
         d2 = np.sum(delta ** 2, axis=2)
         d = np.sqrt(d2)
-
-        self.d = d
-        self.d2 = d2
-
         return var * (1 + np.sqrt(5)* d / ls + 5 * d2
                 / (3 * np.square(ls))) * \
                 np.exp( - np.sqrt(5) * d / ls)
@@ -159,5 +139,41 @@ class Matern52:
 
 class SpectralMixture:
 
-    def __init__(self, params):
+    def __init__(self, w, mu, sigma):
+        self.w = w
+        self.mu = mu
+        self.sigma = sigma
+        self.a = len(w)
+        self.params = self.pack_params(w, mu, sigma)
+
+    def eval(self, params, X, X2 = None):
+
+        w, mu, sigma = self.unpack_params(params)
+        X2 = X if X2 is None else X2
+        delta = np.expand_dims(X, 1) - \
+                np.expand_dims(X2, 0)
+        tau_sq = np.sum(delta ** 2, axis=2)
+        tau = np.sqrt(tau_sq)
+        out = np.zeros((X.shape[0], X2.shape[0]))
+        for a in range(self.a):
+            out += w[a] * np.exp(-2 * np.pi * tau_sq * sigma[0]) * \
+                    np.cos(2 * np.pi * tau * mu[a])
+        return out
+
+    def unpack_params(self, params):
+        return softplus(params[:self.a]), softplus(params[self.a: 2 * self.a]),\
+               softplus(params[2 * self.a: len(params)])
+
+    def pack_params(self, w, mu, sigma):
+
+        return inv_softplus(np.hstack([w, mu, sigma]))
+
+class TaskKernel:
+
+    def __init__(self, params, T, d):
         self.params = params
+        self.T = T
+        self.d = d
+
+    def eval(self, params):
+        return np.reshape(params, (self.T, self.d))

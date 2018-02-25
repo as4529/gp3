@@ -17,8 +17,15 @@ class SVIBase(InfBase):
     """
     Base class for stochastic variational inference.
     """
-    def __init__(self, X, y, kernel, likelihood, mu = None, obs_idx = None,
-                 opt_kernel = False, noise = 1e-2,
+    def __init__(self,
+                 X,
+                 y,
+                 kernel,
+                 likelihood,
+                 mu = None,
+                 obs_idx = None,
+                 opt_kernel = False,
+                 noise = 1e-2,
                  optimizer = Adam()):
 
         super(SVIBase, self).__init__(X, y, kernel, likelihood,
@@ -26,7 +33,6 @@ class SVIBase(InfBase):
 
         self.elbos = []
         self.q_mu = self.mu
-
         self.likelihood = likelihood
         self.likelihood_opt = egrad(self.likelihood.log_like)
         self.optimizer = optimizer

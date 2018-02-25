@@ -15,4 +15,5 @@ setup(
         'notebooks': ['jupyter>=1.0.0'],
         'visualization': ['matplotlib>=1.3',
                           'plotly>=2.2.2',
-                          'tqdm>=4.19.4']})
+                          'tqdm>=4.19.4'],
+        'autograd': ['autograd>=1.2']})

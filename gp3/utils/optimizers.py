@@ -3,11 +3,11 @@ import numpy as np
 
 class CG:
 
-    def __init__(self, cg_prod=None, tol=1e-3):
+    def __init__(self, cg_prod=None, tol=1e-6):
         self.cg_prod = cg_prod
         self.tol = tol
 
-    def cg(self, A, b, cg_prod = None, x = None, its = None):
+    def cg(self, A, b, cg_prod=None, x=None, its=None):
 
         n = len(b)
 
@@ -36,13 +36,13 @@ class CG:
 
 class Adam:
 
-    def __init__(self, step_size = .1, b1 = .9, b2 = .999, eps = .1):
+    def __init__(self, step_size=1e-3, b1=.9, b2=.99, eps=1e-2):
         self.step_size = step_size
         self.b1 = b1
         self.b2 = b2
         self.eps = eps
 
-    def step(self, var_and_grad, m, v, t):
+    def step(self, var_and_grad, params):
         """
         Adapted from autograd.misc.optimizers
         Args:
@@ -59,26 +59,49 @@ class Adam:
         """
 
         var, grad = var_and_grad
-        if m is None:
+        if params is None:
             m = np.zeros(len(var))
-        if v is None:
             v = np.zeros(len(var))
+            t = 1
+        else:
+            m, v, t = params
+        m = self.b1 * m + (1 - self.b1) * grad
+        v = self.b2 * v + (1 - self.b2) * np.square(v)
+        alpha_t = self.step_size * \
+                  np.sqrt(1 - self.b2 ** t)/(1 - self.b1 ** t)
+        var = var + alpha_t * m/(np.sqrt(v) + self.eps)
+        return var, (m, v, t + 1)
 
-        m = self.b1* m + (1-self.b1)*grad
-        v = self.b2*v + (1-self.b2)*np.square(v)
-        alpha_t = self.step_size*np.sqrt(1-self.b2**t)/(1-self.b1**t)
-        var = var + alpha_t*m/(np.sqrt(v) + self.eps)
 
-        return var, m, v
+class SGD:
+
+    def __init__(self, step_size=0.1, momentum=0.9, decay=0.9999):
+        self.step_size = step_size
+        self.momentum = momentum
+        self.decay=decay
+
+    def step(self, var_and_grad, params):
+        """
+        """
+        if params is None:
+            v_prev = 0.
+            t = 1
+        else:
+            v_prev, t = params
+        var, grad = var_and_grad
+        v_t = (1 - self.momentum) * grad + self.momentum * v_prev
+
+        return var + v_t * self.step_size * self.decay ** t, (v_t, t + 1)
+
 
 class RMSProp:
 
-    def __init__(self, step_size=1e-3, gamma=0.9, eps=1.):
+    def __init__(self, step_size=1e-3, gamma=0.9, eps=1):
         self.step_size = step_size
         self.gamma = gamma
         self.eps = eps
 
-    def step(self, var_and_grad, avg_sq_grad = None):
+    def step(self, var_and_grad, avg_sq_grad=None):
 
         """Root mean squared prop: See Adagrad paper for details."""
         var, grad = var_and_grad
@@ -86,5 +109,4 @@ class RMSProp:
             avg_sq_grad = np.ones(len(var))
         avg_sq_grad = avg_sq_grad * self.gamma + grad ** 2 * (1 - self.gamma)
         var = var + self.step_size * grad / (np.sqrt(avg_sq_grad) + self.eps)
-
         return var, avg_sq_grad
