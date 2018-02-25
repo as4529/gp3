@@ -29,13 +29,12 @@ gp3 currently leverages [autograd](https://github.com/HIPS/autograd) to allow fo
 **In Progress:**
 
 * Accurate posterior variance estimates
-* Optimizing observation noise
-* Deep Kernel Learning
+* Inference for Multi-output GPs
 
 **Next:**
 
 * Inducing Points
-* Inference for Multi-output GPs
+* Deep Kernel Learning
 
 ## References
 
