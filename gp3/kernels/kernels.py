@@ -1,5 +1,6 @@
 import autograd.numpy as np
-from gp3.utils.transforms import softplus, inv_softplus
+from gp3.utils.transforms import softplus, inv_softplus,\
+    softmax, unit_norm
 
 class RBF:
 
@@ -33,6 +34,9 @@ class RBF:
     def pack_params(self, lengthscale, variance):
 
         return inv_softplus(np.array([lengthscale, variance]))
+
+    def penalty(self):
+        return 0
 
 class DeepRBF:
     """
@@ -165,15 +169,32 @@ class SpectralMixture:
                softplus(params[2 * self.a: len(params)])
 
     def pack_params(self, w, mu, sigma):
-
         return inv_softplus(np.hstack([w, mu, sigma]))
 
-class TaskKernel:
+    def penalty(self):
+        return 0
 
-    def __init__(self, params, T, d):
-        self.params = params
-        self.T = T
-        self.d = d
+class TaskEmbed:
 
-    def eval(self, params):
-        return np.reshape(params, (self.T, self.d))
+    def __init__(self, Q, n_tasks, n_dims, l=.01):
+        self.Q = Q
+        self.n_tasks = n_tasks
+        self.n_dims = n_dims
+        self.l = l
+        self.params = self.pack_params(self.Q)
+
+    def eval(self, params, X, X2 = None):
+        Q = self.unpack_params(params)
+        return np.dot(Q, Q.T)
+
+    def unpack_params(self, params):
+        return np.reshape(params,
+                          (self.n_tasks, self.n_dims))
+
+    def pack_params(self, Q):
+        packed = Q.flatten()
+        return packed
+
+    def penalty(self, params):
+        return self.l * np.linalg.norm(params)
+

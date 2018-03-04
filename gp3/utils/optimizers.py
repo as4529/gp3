@@ -3,7 +3,7 @@ import numpy as np
 
 class CG:
 
-    def __init__(self, cg_prod=None, tol=1e-6):
+    def __init__(self, cg_prod=None, tol=1e-3):
         self.cg_prod = cg_prod
         self.tol = tol
 
@@ -75,7 +75,7 @@ class Adam:
 
 class SGD:
 
-    def __init__(self, step_size=0.1, momentum=0.9, decay=0.9999):
+    def __init__(self, step_size=0.1, momentum=0.9, decay=0.999):
         self.step_size = step_size
         self.momentum = momentum
         self.decay=decay
@@ -90,7 +90,6 @@ class SGD:
             v_prev, t = params
         var, grad = var_and_grad
         v_t = (1 - self.momentum) * grad + self.momentum * v_prev
-
         return var + v_t * self.step_size * self.decay ** t, (v_t, t + 1)
 
 

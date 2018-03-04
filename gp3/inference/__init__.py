@@ -6,6 +6,8 @@ from .base import *
 from .laplace import *
 from .svi import *
 from .vanilla import *
+from .multitask import *
 
 _allowed_symbols = ['laplace', 'svi', 'base', 'vanilla',
-                     'MFSVI', 'Laplace', 'InfBase', 'Vanilla']
+                     'MFSVI', 'Laplace', 'InfBase', 'Vanilla',
+                    'Multitask']

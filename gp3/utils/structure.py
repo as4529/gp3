@@ -1,6 +1,7 @@
 import numpy as np
 from functools import reduce
 from scipy.linalg import circulant
+from copy import copy
 
 def kron(A, B):
     """
@@ -35,24 +36,25 @@ def kron_list(matrices):
     """
     return reduce(kron, matrices)
 
-
 def kron_mvp(Ks, v):
-    """
-    Matrix vector product using Kronecker structure
-    Args:
-        Ks (list of np.array): list of matrices
-        of K
-        v (np.array): vector to multiply K by
 
-    Returns: matrix vector product of K and v
+    m = [k.shape[0] for k in Ks]
+    n = [k.shape[1] for k in Ks]
+    b = copy(v)
 
-    """
+    for i in range(len(Ks)):
+        a = np.reshape(b, (np.prod(m[:i], dtype=int),
+                           n[i],
+                           np.prod(n[i+1:], dtype=int)))
+        tmp = np.reshape(np.swapaxes(a, 2, 1),
+                         (-1, n[i]))
+        tmp = tmp.dot(Ks[i].T)
+        b = np.swapaxes(np.reshape(tmp,
+                                   (a.shape[0],
+                                    a.shape[2],
+                                    m[i])), 2, 1)
+    return np.reshape(b, np.prod(m, dtype=int))
 
-    mvp = v
-    for k in reversed(Ks):
-        mvp = np.reshape(mvp, [k.shape[0], -1])
-        mvp = np.dot(k, mvp) .T
-    return mvp.flatten()
 
 def kron_list_diag(Ks):
 

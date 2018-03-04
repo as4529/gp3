@@ -1,4 +1,3 @@
-import GPy
 import numpy as np
 import itertools
 from scipy.stats import rankdata
@@ -13,7 +12,22 @@ def sim_f(X, kernel, mu=3):
     simulates function values given X
     Args:
         X (np.array): data points
-        k (GPy.kernel): kernel function
+        k (gp3.kernel): kernel function
+        mu (np.array): prior mean
+
+    Returns: sampled function values
+
+    """
+
+    return np.random.multivariate_normal(np.ones(X.shape[0]) * mu,
+                                         kernel.eval(kernel.params, X))
+
+def sim_f_kron(X, kernels, mu=3):
+    """
+    simulates function values given X
+    Args:
+        X (np.array): data points
+        k (gp3.kernel): kernel function
         mu (np.array): prior mean
 
     Returns: sampled function values

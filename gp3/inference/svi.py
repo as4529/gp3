@@ -43,9 +43,9 @@ class SVIBase(InfBase):
         Returns: predictions
         """
         Ks = []
-        for i in range(self.X.shape[1]):
-            K = self.kernel.eval(self.kernel.params,
-                                 np.expand_dims(np.unique(self.X[:, i]), 1))
+        for d in range(self.X.shape[1]):
+            K = self.kernels[d].eval(self.kernels[d].params,
+                                 np.expand_dims(np.unique(self.X[:, d]), 1))
             Ks.append(K)
 
         f_pred = kron_mvp(Ks, kron_mvp(self.K_invs, self.q_mu))
@@ -74,8 +74,7 @@ class MFSVI(SVIBase):
                                     mu, obs_idx, opt_kernel)
 
         self.q_S = np.ones(self.m) * np.log(self.Ks[0][0, 0] ** self.d)
-        self.v_mu, self.v_s, self.v_k, self.m_mu, \
-        self.m_s, self.m_k = (None for _ in range(6))
+        self.mu_params, self.s_params, self.k_params = (None for _ in range(3))
 
     def run(self, its, n_samples=1, notebook_mode = True):
         """
@@ -120,24 +119,9 @@ class MFSVI(SVIBase):
 
             S_vars= (self.q_S, np.mean(grads_S, 0))
             mu_vars = (self.q_mu, np.mean(grads_mu, 0))
-            kern_and_grad = None
 
-            if self.opt_kernel == True:
-                kern_grad = self.grad_kern()
-                kern_grad_clip = np.clip(kern_grad, -self.max_grad, self.max_grad)
-                kern_and_grad = (self.kernel.params, kern_grad_clip)
-                self.kern_grad = kern_grad
-
-            self.q_mu, m_mu, v_mu = self.optimizer.step(mu_vars, self.m_mu,
-                                                        self.v_mu, i+1)
-            self.q_S, m_s, v_s = self.optimizer.step(S_vars, self.m_s,
-                                                     self.v_s, i+1)
-            if self.opt_kernel == True:
-                self.kernel.params, m_k, v_k = self.optimizer.step(kern_and_grad,
-                                                                   self.m_k, self.v_k,
-                                                                   i+1)
-                self.Ks, self.K_invs = self.construct_Ks()
-
+            self.q_mu, m_mu, v_mu = self.optimizer.step(mu_vars, self.mu_params)
+            self.q_S, m_s, v_s = self.optimizer.step(S_vars, self.s_params)
             if i > 100 and self.loss_check() == True:
                 print("converged at", i, "iterations")
                 return
