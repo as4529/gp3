@@ -11,7 +11,7 @@ class InfBase(object):
                  likelihood=None,
                  mu=None,
                  obs_idx=None,
-                 max_grad=100.,
+                 max_grad=10.,
                  noise=1e-6):
 
         self.X = X
@@ -21,12 +21,12 @@ class InfBase(object):
         self.obs_idx = obs_idx
         self.n = len(self.obs_idx) if self.obs_idx is not None else self.m
         self.X_dims = [np.expand_dims(np.unique(X[:, i]), 1) for i in range(self.d)]
-        self.mu = np.zeros(self.n) if mu is None else mu
+        self.mu = np.zeros(self.m) if mu is None else mu
         self.max_grad = max_grad
         self.init_Ks(kernels, noise)
         if likelihood is not None:
             self.likelihood = likelihood
-            self.likelihood_opt = egrad(self.likelihood.log_like)
+            self.likelihood_grad = egrad(self.likelihood.log_like)
 
     def init_Ks(self, kernels, noise):
 

@@ -36,7 +36,7 @@ class CG:
 
 class Adam:
 
-    def __init__(self, step_size=1e-3, b1=.9, b2=.99, eps=1e-2):
+    def __init__(self, step_size=1e-3, b1=.9, b2=.99, eps=0.1):
         self.step_size = step_size
         self.b1 = b1
         self.b2 = b2
@@ -75,7 +75,7 @@ class Adam:
 
 class SGD:
 
-    def __init__(self, step_size=0.1, momentum=0.9, decay=0.999):
+    def __init__(self, step_size=1e-3, momentum=0.9, decay=0.999):
         self.step_size = step_size
         self.momentum = momentum
         self.decay=decay

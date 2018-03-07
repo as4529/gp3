@@ -4,10 +4,11 @@ from gp3.utils.transforms import softplus, inv_softplus,\
 
 class RBF:
 
-    def __init__(self, lengthscale, variance):
+    def __init__(self, lengthscale, variance, l=0.):
 
         self.lengthscale = lengthscale
         self.variance = variance
+        self.l = l
         self.params = self.pack_params(lengthscale, variance)
 
     def eval(self, params, X, X2 = None):
@@ -35,8 +36,8 @@ class RBF:
 
         return inv_softplus(np.array([lengthscale, variance]))
 
-    def penalty(self):
-        return 0
+    def log_prior(self, params):
+        return self.l * np.linalg.norm(params)
 
 class DeepRBF:
     """
@@ -143,11 +144,12 @@ class Matern52:
 
 class SpectralMixture:
 
-    def __init__(self, w, mu, sigma):
+    def __init__(self, w, mu, sigma, l=0.):
         self.w = w
         self.mu = mu
         self.sigma = sigma
         self.a = len(w)
+        self.l = l
         self.params = self.pack_params(w, mu, sigma)
 
     def eval(self, params, X, X2 = None):
@@ -171,12 +173,36 @@ class SpectralMixture:
     def pack_params(self, w, mu, sigma):
         return inv_softplus(np.hstack([w, mu, sigma]))
 
-    def penalty(self):
-        return 0
+    def log_prior(self, params):
+        return self.l * np.linalg.norm(params)
+
+class Task:
+
+    def __init__(self, L, n_tasks, l=100):
+        self.L = L
+        self.l = l
+        self.n_tasks = n_tasks
+
+    def eval(self, params, X, X2=None):
+        K = self.unpack_params(params)
+        return K
+
+    def unpack_params(self, params):
+        tri = np.zeros((self.n_tasks, self.n_tasks))
+        tri[np.triu_indices(self.n_tasks, 1)] = params
+        return tri.dot(tri.T)
+
+    def pack_params(self, L):
+        packed = L.flatten()
+        return packed
+
+    def log_prior(self, params):
+        return self.l * np.linalg.norm(params)
+
 
 class TaskEmbed:
 
-    def __init__(self, Q, n_tasks, n_dims, l=.01):
+    def __init__(self, Q, n_tasks, n_dims, l=100.):
         self.Q = Q
         self.n_tasks = n_tasks
         self.n_dims = n_dims
@@ -195,6 +221,6 @@ class TaskEmbed:
         packed = Q.flatten()
         return packed
 
-    def penalty(self, params):
+    def log_prior(self, params):
         return self.l * np.linalg.norm(params)
 

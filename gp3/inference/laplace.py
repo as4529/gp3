@@ -32,7 +32,7 @@ Most of the notation follows R and W chapter 2, and Flaxman and Wilson
 
 class Laplace(InfBase):
 
-    def __init__(self, X, y, kernel, likelihood, mu = None,
+    def __init__(self, X, y, kernels, likelihood, mu = None,
                  opt_kernel = False, tau=0.5, obs_idx=None, noise = 1e-6):
         """
 
@@ -46,7 +46,7 @@ class Laplace(InfBase):
             verbose (bool): verbose or not
         """
 
-        super(Laplace, self).__init__(X, y, kernel, likelihood,
+        super(Laplace, self).__init__(X, y, kernels, likelihood,
                                       mu, obs_idx, opt_kernel, noise=noise)
 
         self.alpha = np.zeros([X.shape[0]])
@@ -149,9 +149,7 @@ class Laplace(InfBase):
 
         delta_alpha = np.multiply(np.sqrt(self.W), z) - self.alpha
         step_size = self.line_search(delta_alpha, psi, 20)
-
         delta = step_size
-
         if delta > 1e-9:
             self.alpha = self.alpha + delta_alpha*step_size
             self.alpha = np.where(np.isnan(self.alpha),
@@ -252,7 +250,7 @@ class Laplace(InfBase):
         """
 
         if kernel.params is not None:
-            self.Ks = self.construct_Ks(self.kernel)
+            self.Ks = self.construct_Ks()
             self.alpha = np.zeros([self.X.shape[0]])
             self.W = np.zeros([self.X.shape[0]])
             self.grads = np.zeros([self.X.shape[0]])
@@ -313,24 +311,23 @@ class Laplace(InfBase):
         diag = kron_list_diag(self.Ks)
 
         for i in range(n_s):
-            g_m = np.random.normal(size = self.m)
-            g_n = np.random.normal(size = self.n)
-            right_side = np.dot(root_K, g_m) +\
-                         np.sqrt(self.noise)*g_n
-
+            g_m = np.random.normal(size=self.m)
+            g_n = np.random.normal(size=self.n)
+            right_side = np.sqrt(np.sqrt(self.W)).dot(np.dot(root_K, g_m)) +\
+                         np.sqrt(self.noise) * g_n
             r = self.opt.cg(self.Ks, right_side)
             if self.obs_idx is not None:
                 Wr = np.zeros(self.m)
-                Wr[self.obs_idx] = r
+                Wr[self.obs_idx] = np.multiply(np.sqrt(self.W), r)
             else:
-                Wr = r
+                Wr = np.multiply(np.sqrt(self.W), r)
             var += np.square(kron_mvp(self.Ks, Wr))
 
         return np.clip(diag - var/n_s, 0, 1e12).flatten()
 
     def predict_mean(self, x_new):
 
-        k_dims = [self.kernel.eval(self.kernel.params,
+        k_dims = [self.kernels[d].eval(self.kernels[d].params,
                                    np.expand_dims(np.unique(self.X[:, d]), 1),
                                    np.expand_dims(x_new[:, d], 1))
                   for d in self.X.shape[1]]
@@ -348,18 +345,15 @@ class Laplace(InfBase):
         Returns: product Ap (left side of linear system)
 
         """
-
         if self.precondition is None:
             return p + np.multiply(np.sqrt(self.W),
                                    kron_mvp(Ks,
-                                            np.multiply(np.sqrt(self.W), p)))
-
+                                   np.multiply(np.sqrt(self.W), p)))
         Cp = np.multiply(self.precondition, p)
         noise = np.multiply(np.multiply(self.precondition,
                                         np.multiply(self.W, self.k_diag)), Cp)
         wkw = np.multiply(np.multiply(self.precondition, np.sqrt(self.W)),
                           kron_mvp(Ks, np.multiply(np.sqrt(self.W), Cp)))
-
         return noise + wkw + np.multiply(self.precondition, Cp)
 
     def gather_derivs(self):
@@ -397,9 +391,3 @@ class Laplace(InfBase):
                           self.W)
 
         return self.grads, self.hess
-
-    def opt_kern(self):
-
-        init_params = self.kernel.params
-
-        return minimize(self.marginal, init_params, jac = False, method='CG')

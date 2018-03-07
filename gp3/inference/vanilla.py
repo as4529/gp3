@@ -6,10 +6,8 @@ from .base import InfBase
 from scipy.linalg import toeplitz
 from scipy.special import expit
 from tqdm import trange, tqdm_notebook
-from copy import copy, deepcopy
-from gp3.kernels import TaskEmbed
+from copy import copy
 from autograd import jacobian
-import scipy
 
 """
 Class for Kronecker inference of GPs with Gaussian likelihood. Inspiration from GPML.
@@ -52,8 +50,8 @@ class Vanilla(InfBase):
         self.eigvecs = None
         self.alpha = None
         self.optimizer = None
+        self.kernel_grads = None
         self.opt_idx = range(self.d) if opt_idx is None else opt_idx
-
 
     def solve(self):
        """
@@ -61,7 +59,10 @@ class Vanilla(InfBase):
        Returns:
 
        """
-       self.alpha = self.cg_opt.cg(self.Ks, self.y - self.mu)
+       mu = self.mu
+       if self.obs_idx is not None:
+           mu = mu[self.obs_idx]
+       self.alpha = self.cg_opt.cg(self.Ks, self.y - mu)
        return self.alpha
 
     def A_prod(self, Ks, p):
@@ -95,7 +96,13 @@ class Vanilla(InfBase):
         """
         if self.alpha is None:
             self.solve()
-        return self.K_prod(self.Ks, self.alpha)
+        if self.obs_idx is not None:
+            Wp = np.zeros(self.m)
+            Wp[self.obs_idx] = self.alpha
+            kprod = self.mvp(self.Ks, Wp)
+        else:
+            kprod = self.mvp(self.Ks, self.alpha)
+        return self.mu + kprod
 
     def marginal(self):
 
@@ -103,9 +110,15 @@ class Vanilla(InfBase):
             self.solve()
         if self.eigvals is None:
             self.eig_decomp()
+        mu = self.mu
+        if self.obs_idx is not None:
+            mu = self.mu[self.obs_idx]
         det = 0.5 * np.sum(np.log(kron_list_diag(self.eigvals) + self.noise))
-        fit = 0.5 * np.dot(self.y - self.mu, self.alpha)
-        return - det - fit
+        fit = 0.5 * np.dot(self.y - mu, self.alpha)
+        prior = 0
+        for kern in self.kernels:
+            prior += kern.log_prior(kern.params)
+        return - det - fit - prior
 
     def eig_decomp(self):
         """
@@ -123,7 +136,7 @@ class Vanilla(InfBase):
         self.eigvals = eigvals
         return
 
-    def optimize_step(self, k_params, n_params):
+    def optimize_step(self, k_params, n_params, update=True):
 
         if self.opt_idx is None:
             self.opt_idx = list(range(self.d))
@@ -133,7 +146,7 @@ class Vanilla(InfBase):
             self.kernel_grads = []
             for i in self.opt_idx:
                 self.kernel_grads.append((jacobian(self.kernels[i].eval),
-                                          jacobian(self.kernels[i].penalty)))
+                                          jacobian(self.kernels[i].log_prior)))
 
         # Optimizing kernel hyperparameters
         for i, d in enumerate(self.opt_idx):
@@ -161,9 +174,31 @@ class Vanilla(InfBase):
 
         # updating kernel and calculating loss
         self.construct_Ks()
-        self.solve()
         loss = -self.marginal()
+        if update:
+            self.solve()
         return k_params, n_params, loss
+
+    def optimize_step_ls(self):
+
+        for i, d in enumerate(self.opt_idx):
+            grad_kern_marginal = np.clip(self.grad_marginal_k(i, d),
+                                - self.max_grad, self.max_grad)
+            grad_kern_penalty = np.clip(self.grad_penalty_k(i, d),
+                                - self.max_grad, self.max_grad)
+            grad_kern = grad_kern_marginal - grad_kern_penalty
+
+        # Optimizing observation noise
+        noise_trans = inv_softplus(self.noise)
+        grad_noise = np.clip(self.grad_marginal_noise(),
+                             - self.max_grad, self.max_grad)
+        grad_noise_trans = expit(noise_trans) * grad_noise
+
+        return
+
+    def line_search(self, kern_grads, noise_grads):
+
+        self.marginal()
 
     def optimize(self, its=100, notebook_mode=True):
         if self.opt_idx is None:
@@ -171,7 +206,7 @@ class Vanilla(InfBase):
         self.kernel_grads = []
         for i in self.opt_idx:
             self.kernel_grads.append((jacobian(self.kernels[i].eval),
-                                      jacobian(self.kernels[i].penalty)))
+                                      jacobian(self.kernels[i].log_prior)))
 
         k_params = [None for _ in range(len(self.opt_idx))]
         n_params = None
@@ -182,7 +217,7 @@ class Vanilla(InfBase):
             t = trange(its, leave=True)
 
         for i in t:
-            k_adam, n_adam, loss = \
+            k_params, n_params, loss = \
                      self.optimize_step(k_params, n_params)
             losses.append(loss)
             t.set_description("Loss: " + '{0:.2f}'.format(loss))
@@ -256,7 +291,6 @@ class Vanilla(InfBase):
         samples = []
 
         for i in range(n_s):
-
             g_m = np.random.normal(size=self.m)
             g_n = np.random.normal(size=self.n)
 
@@ -271,10 +305,9 @@ class Vanilla(InfBase):
                 Wr[self.obs_idx] = r
             else:
                 Wr = r
-            samples.append(self.K_prod(self.Ks, Wr))
+            samples.append(kron_mvp(self.Ks, Wr))
 
         est = np.var(samples, axis=0)
-
         return np.clip(diag - est, 0, a_max = None).flatten()
 
     def variance_exact(self):

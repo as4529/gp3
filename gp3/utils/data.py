@@ -1,13 +1,13 @@
 import numpy as np
 import itertools
-from scipy.stats import rankdata
+from gp3.utils.structure import kron_list
 
 """
 basic utilities for simulating data
 """
 
 
-def sim_f(X, kernel, mu=3):
+def sim_f(X, kernel, mu=0):
     """
     simulates function values given X
     Args:
@@ -21,6 +21,13 @@ def sim_f(X, kernel, mu=3):
 
     return np.random.multivariate_normal(np.ones(X.shape[0]) * mu,
                                          kernel.eval(kernel.params, X))
+
+def sim_f_kron(X, kernels, mu=0):
+    K = kron_list([kernels[d].eval(kernels[d].params,
+                                   np.unique(X[:,d])) for d in X.shape[1]])
+    K_chol = np.linalg.cholesky(K)
+    eps = np.random.multivariate_normal(size=K.shape[0])
+    return mu + np.dot(K_chol, eps)
 
 def sim_f_kron(X, kernels, mu=3):
     """

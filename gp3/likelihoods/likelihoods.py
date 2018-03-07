@@ -22,3 +22,11 @@ class Bernoulli:
         return -np.multiply(y, np.log(1 + np.exp(-g))) - \
                               np.multiply(1 - y, np.log(1 + np.exp(g)))
 
+class Gaussian:
+
+    def __init__(self, variance):
+        self.variance = variance
+
+    def log_like(self, mean, y):
+
+        return -np.sum(np.square(y - mean))/ (2 * self.variance)
