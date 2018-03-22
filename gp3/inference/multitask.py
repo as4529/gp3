@@ -5,6 +5,10 @@ from gp3.kernels import Task, TaskEmbed
 from . import Vanilla
 from gp3.utils.transforms import unit_norm
 
+"""
+NOTE: This class is in progress. Classes for multitask GP inference.
+"""
+
 class MultitaskFullRank():
 
     def __init__(self,

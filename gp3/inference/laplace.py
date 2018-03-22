@@ -307,13 +307,12 @@ class Laplace(InfBase):
         else:
             root_K = self.root_eigdecomp
 
-        var = np.zeros([self.m])
         diag = kron_list_diag(self.Ks)
-
+        samples = []
         for i in range(n_s):
             g_m = np.random.normal(size=self.m)
             g_n = np.random.normal(size=self.n)
-            right_side = np.sqrt(np.sqrt(self.W)).dot(np.dot(root_K, g_m)) +\
+            right_side = np.sqrt(self.W).dot(np.dot(root_K, g_m)) +\
                          np.sqrt(self.noise) * g_n
             r = self.opt.cg(self.Ks, right_side)
             if self.obs_idx is not None:
@@ -321,9 +320,9 @@ class Laplace(InfBase):
                 Wr[self.obs_idx] = np.multiply(np.sqrt(self.W), r)
             else:
                 Wr = np.multiply(np.sqrt(self.W), r)
-            var += np.square(kron_mvp(self.Ks, Wr))
-
-        return np.clip(diag - var/n_s, 0, 1e12).flatten()
+            samples.append(kron_mvp(self.Ks, Wr))
+        var = np.var(samples, axis=0)
+        return np.clip(diag - var, 0, 1e12).flatten(), var
 
     def predict_mean(self, x_new):
 

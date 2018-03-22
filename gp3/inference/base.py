@@ -2,6 +2,9 @@ import autograd.numpy as np
 from autograd import elementwise_grad as egrad, jacobian
 from gp3.utils.structure import kron_list, kron_list_diag
 
+"""
+Base inference class
+"""
 class InfBase(object):
 
     def __init__(self,
@@ -13,6 +16,18 @@ class InfBase(object):
                  obs_idx=None,
                  max_grad=10.,
                  noise=1e-6):
+        """
+
+        Args:
+            X (): data (full grid)
+            y (): response
+            kernels (): list of kernel objects
+            likelihood (): likelihood object
+            mu (): prior mean
+            obs_idx (): indices of observed points on grid
+            max_grad (): for gradient clipping
+            noise (): observation noise jitter
+        """
 
         self.X = X
         self.y = y
@@ -29,6 +44,15 @@ class InfBase(object):
             self.likelihood_grad = egrad(self.likelihood.log_like)
 
     def init_Ks(self, kernels, noise):
+        """
+        Initializes dimension-wise kernel matrices
+        Args:
+            kernels (): kernel objects for each dimension
+            noise (): observation noise
+
+        Returns:
+
+        """
 
         self.kernels = kernels
         self.noise = np.array([noise])
@@ -62,9 +86,18 @@ class InfBase(object):
         return log_det
 
     def full_K(self):
+        """
+        Composes full kernel matrix
+        Returns:K
+
+        """
 
         return kron_list(self.Ks)
 
     def full_A(self):
+        """
+        Composes full kernel matrix with noise added
+        Returns: A
 
+        """
         return self.full_K() + np.diag(np.ones(self.m) * self.noise)

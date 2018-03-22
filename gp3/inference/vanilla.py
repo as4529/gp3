@@ -63,7 +63,7 @@ class Vanilla(InfBase):
        if self.obs_idx is not None:
            mu = mu[self.obs_idx]
        self.alpha = self.cg_opt.cg(self.Ks, self.y - mu)
-       return self.alpha
+       return
 
     def A_prod(self, Ks, p):
         """
@@ -78,7 +78,15 @@ class Vanilla(InfBase):
         return self.noise * p + kprod
 
     def K_prod(self, Ks, p):
+        """
+        Product with covariance matrix K
+        Args:
+            Ks (): kronecker decomposition of K
+            p (): vector for product
 
+        Returns:
+
+        """
         if self.obs_idx is not None:
             Wp = np.zeros(self.m)
             Wp[self.obs_idx] = p
@@ -105,7 +113,11 @@ class Vanilla(InfBase):
         return self.mu + kprod
 
     def marginal(self):
+        """
+        Calculates marginal likelihood
+        Returns: marginal likelihood
 
+        """
         if self.alpha is None:
             self.solve()
         if self.eigvals is None:
@@ -137,6 +149,16 @@ class Vanilla(InfBase):
         return
 
     def optimize_step(self, k_params, n_params, update=True):
+        """
+        Runs one step of optimization
+        Args:
+            k_params (): optimizer params for kernel optimization
+            n_params (): optimizer params for noise uptimization
+            update (): whether or not to update parameters
+
+        Returns: updated k_params, n_params
+
+        """
 
         if self.opt_idx is None:
             self.opt_idx = list(range(self.d))
@@ -179,28 +201,16 @@ class Vanilla(InfBase):
             self.solve()
         return k_params, n_params, loss
 
-    def optimize_step_ls(self):
-
-        for i, d in enumerate(self.opt_idx):
-            grad_kern_marginal = np.clip(self.grad_marginal_k(i, d),
-                                - self.max_grad, self.max_grad)
-            grad_kern_penalty = np.clip(self.grad_penalty_k(i, d),
-                                - self.max_grad, self.max_grad)
-            grad_kern = grad_kern_marginal - grad_kern_penalty
-
-        # Optimizing observation noise
-        noise_trans = inv_softplus(self.noise)
-        grad_noise = np.clip(self.grad_marginal_noise(),
-                             - self.max_grad, self.max_grad)
-        grad_noise_trans = expit(noise_trans) * grad_noise
-
-        return
-
-    def line_search(self, kern_grads, noise_grads):
-
-        self.marginal()
-
     def optimize(self, its=100, notebook_mode=True):
+        """
+        Kernel optimization
+        Args:
+            its (): maximum number of iterations
+            notebook_mode (): for tqdm notebook
+
+        Returns: sequence of loss values
+
+        """
         if self.opt_idx is None:
             self.opt_idx = list(range(self.d))
         self.kernel_grads = []
@@ -226,6 +236,16 @@ class Vanilla(InfBase):
         return losses
 
     def grad_marginal_k(self, i, d):
+        """
+        Gradient of marginal likelihood w.r.t. kernel hyperparameters
+        Args:
+            i (): index of kernel in self.kernels
+            d (): dimension of kernel
+
+        Returns:
+            gradient of marginal w.r.t. ith kernel at dth dimension
+
+        """
         n_params = len(self.kernels[d].params)
         grads = np.zeros(n_params)
         grad_K = np.squeeze(self.kernel_grads[i][0](self.kernels[d].params,
@@ -241,9 +261,27 @@ class Vanilla(InfBase):
         return grads
 
     def grad_penalty_k(self, i, d):
+        """
+        Gradient of kernel prior w.r.t kernel parameters
+        Args:
+            i (): index of kernel in self.kernels
+            d (): dimension of kernel
+
+        Returns: gradient
+
+        """
         return self.kernel_grads[i][1](self.kernels[d].params)
 
     def stochastic_trace(self, Kgrad, n_s=1):
+        """
+        Stochastic estimator of trace term for gradient
+        Args:
+            Kgrad (): gradient w.r.t kernel matrix
+            n_s (): number of samples for estimator
+
+        Returns: estimate of trace term
+
+        """
         rs = np.random.choice([-1, 1], (n_s, self.n))
         if self.obs_idx is not None:
             r_full = np.zeros((n_s, self.m))
@@ -262,6 +300,14 @@ class Vanilla(InfBase):
         return trace / n_s
 
     def grad_marginal_noise(self, n_s=1):
+        """
+        Gradient of marginal likelihood w.r.t observation noise
+        Args:
+            n_s (): Number of samples
+
+        Returns:
+
+        """
         rs = np.random.choice([-1, 1], (n_s, self.n))
         trace = 0.
         for i in range(n_s):
@@ -311,6 +357,11 @@ class Vanilla(InfBase):
         return np.clip(diag - est, 0, a_max = None).flatten()
 
     def variance_exact(self):
+        """
+        Exact computation of variance
+        Returns: exact variance
+
+        """
         K_uu = kron_list(self.Ks)
         K_xx = K_uu
         K_ux = K_uu

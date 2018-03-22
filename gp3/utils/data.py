@@ -29,21 +29,6 @@ def sim_f_kron(X, kernels, mu=0):
     eps = np.random.multivariate_normal(size=K.shape[0])
     return mu + np.dot(K_chol, eps)
 
-def sim_f_kron(X, kernels, mu=3):
-    """
-    simulates function values given X
-    Args:
-        X (np.array): data points
-        k (gp3.kernel): kernel function
-        mu (np.array): prior mean
-
-    Returns: sampled function values
-
-    """
-
-    return np.random.multivariate_normal(np.ones(X.shape[0]) * mu,
-                                         kernel.eval(kernel.params, X))
-
 def sim_X(D=2, N_dim=30, lower=0, upper=100):
     """
     Simulates X on a rectilinear grid

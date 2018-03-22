@@ -4,10 +4,13 @@ from gp3.utils.transforms import softplus, inv_softplus,\
 
 class RBF:
 
-    def __init__(self, lengthscale, variance, l=0.):
+    def __init__(self, lengthscale, variance, l=0., prior_ls=10.,
+                 prior_var=1.):
 
         self.lengthscale = lengthscale
         self.variance = variance
+        self.prior_ls = prior_ls
+        self.prior_var = prior_var
         self.l = l
         self.params = self.pack_params(lengthscale, variance)
 
@@ -37,7 +40,10 @@ class RBF:
         return inv_softplus(np.array([lengthscale, variance]))
 
     def log_prior(self, params):
-        return self.l * np.linalg.norm(params)
+        ls, var = self.unpack_params(params)
+        ls_pen = self.l * np.linalg.norm(ls - self.prior_ls)
+        var_pen = self.l * np.linalg.norm(var - self.prior_var)
+        return ls_pen + var_pen
 
 class DeepRBF:
     """

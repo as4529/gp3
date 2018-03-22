@@ -37,6 +37,15 @@ def kron_list(matrices):
     return reduce(kron, matrices)
 
 def kron_mvp(Ks, v):
+    """
+    Kronecker matrix vector product
+    Args:
+        Ks (): kronecker decomposition of K
+        v (): vector for product
+
+    Returns: Ks*v
+
+    """
 
     m = [k.shape[0] for k in Ks]
     n = [k.shape[1] for k in Ks]
@@ -57,17 +66,18 @@ def kron_mvp(Ks, v):
 
 
 def kron_list_diag(Ks):
+    """
+    Computes diagonal of Kronecker product
+    Args:
+        Ks (): Kronecker decomposition
+
+    Returns:
+
+    """
+
 
     diag = np.hstack([ii * np.diag(Ks[len(Ks)-1])
                       for ii in np.diag(Ks[len(Ks)-2])])
     for i in reversed(range(len(Ks[:-2]))):
         diag = np.hstack([ii * diag for ii in np.diag(Ks[i])])
     return diag
-
-def toep_embed(T):
-
-    c_col = np.hstack([T[0,:], T[0,::-1][1:-1]])
-    return circulant(c_col)
-
-def kron_toep(Ks):
-    return

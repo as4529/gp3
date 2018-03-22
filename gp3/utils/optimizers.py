@@ -2,12 +2,33 @@ import numpy as np
 
 
 class CG:
+    """
+    Conjugate gradient "optimizer" used for solving linear systems
+    """
 
     def __init__(self, cg_prod=None, tol=1e-3):
+        """
+
+        Args:
+            cg_prod (): function for matrix vector products
+            tol (): tolerance around solution
+        """
         self.cg_prod = cg_prod
         self.tol = tol
 
     def cg(self, A, b, cg_prod=None, x=None, its=None):
+        """
+        runs CG procedure to solve Ax=b
+        Args:
+            A (): matrix
+            b (): vector
+            cg_prod (): mvp function
+            x (): initial belief of solution
+            its (): maximum iterations
+
+        Returns:
+
+        """
 
         n = len(b)
 
@@ -35,8 +56,18 @@ class CG:
         return x
 
 class Adam:
-
+    """
+    Adam optimizer
+    """
     def __init__(self, step_size=1e-3, b1=.9, b2=.99, eps=0.1):
+        """
+
+        Args:
+            step_size (): initial step size
+            b1 (): momentum
+            b2 (): second order momentum
+            eps (): jitter
+        """
         self.step_size = step_size
         self.b1 = b1
         self.b2 = b2
@@ -46,18 +77,12 @@ class Adam:
         """
         Adapted from autograd.misc.optimizers
         Args:
-            S_grads ():
-            mu_grads ():
-            kern_grads ():
-            step_size ():
-            b1 ():
-            b2 ():
-            eps ():
+            var_and_grad (): tuple (variable, gradient)
+            params (): optimizer params to update
 
         Returns:
 
         """
-
         var, grad = var_and_grad
         if params is None:
             m = np.zeros(len(var))
@@ -74,14 +99,30 @@ class Adam:
 
 
 class SGD:
-
+    """
+    Stochastic gradient descent
+    """
     def __init__(self, step_size=1e-3, momentum=0.9, decay=0.999):
+        """
+
+        Args:
+            step_size ():
+            momentum ():
+            decay ():
+        """
         self.step_size = step_size
         self.momentum = momentum
         self.decay=decay
 
     def step(self, var_and_grad, params):
         """
+        Runs a step of SGD
+
+        Args:
+            var_and_grad (): tuple (variable, gradient)
+            params (): optimizer params to update
+
+        Returns:
         """
         if params is None:
             v_prev = 0.
@@ -102,7 +143,6 @@ class RMSProp:
 
     def step(self, var_and_grad, avg_sq_grad=None):
 
-        """Root mean squared prop: See Adagrad paper for details."""
         var, grad = var_and_grad
         if avg_sq_grad is None:
             avg_sq_grad = np.ones(len(var))

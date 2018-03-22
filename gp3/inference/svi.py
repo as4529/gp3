@@ -26,7 +26,7 @@ class SVIBase(InfBase):
                  mu = None,
                  obs_idx = None,
                  noise=1e-2,
-                 optimizer=Adam()):
+                 optimizer=SGD()):
 
         super(SVIBase, self).__init__(X, y, kernels, likelihood,
                                       mu, obs_idx, noise=noise)
@@ -73,7 +73,7 @@ class MFSVI(SVIBase):
     """
     Stochastic variational inference with mean-field variational approximation
     """
-    def __init__(self, X, y, kernel, likelihood,
+    def __init__(self, X, y, kernels, likelihood,
                  mu = None, obs_idx = None):
         """
         Args:
@@ -87,7 +87,7 @@ class MFSVI(SVIBase):
             verbose (): print or not
         """
 
-        super(MFSVI, self).__init__(X, y, kernel, likelihood,
+        super(MFSVI, self).__init__(X, y, kernels, likelihood,
                                     mu, obs_idx)
         self.q_S = np.log(kron_list_diag(self.Ks))
         self.mu_params, self.s_params = (None, None)
